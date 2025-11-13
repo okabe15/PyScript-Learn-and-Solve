@@ -917,6 +917,35 @@ print("✅ pyscript module created and registered")
       animation: spin 0.6s linear infinite;
     }
 
+    /* Slot machine animation for step numbers */
+    .step-number-slot {
+      display: inline-block;
+      position: relative;
+      overflow: hidden;
+      vertical-align: middle;
+      height: 1.2em;
+      min-width: 1.5em;
+      text-align: center;
+    }
+
+    .step-number-slot-inner {
+      display: inline-block;
+      transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes slotRoll {
+      0% { transform: translateY(0); }
+      20% { transform: translateY(-100%); }
+      40% { transform: translateY(-200%); }
+      60% { transform: translateY(-300%); }
+      80% { transform: translateY(-400%); }
+      100% { transform: translateY(-500%); }
+    }
+
+    .step-number-rolling {
+      animation: slotRoll 0.6s ease-in-out;
+    }
+
     </style>
   </head>
   <body>
@@ -4767,6 +4796,33 @@ class ProblemSolverApp:
             button.disabled = False
 
     # ============================================
+    # HELPER METHODS - Step Number Animation
+    # ============================================
+
+    def animate_step_number(self, from_step, to_step):
+        """Animate step number with slot machine effect"""
+        try:
+            step_number_el = document.querySelector(".step-number-display")
+            if not step_number_el:
+                window.console.warn("⚠️ Step number element not found for animation")
+                return
+
+            # Create slot effect
+            step_number_el.classList.add("step-number-rolling")
+
+            def end_animation():
+                step_number_el.textContent = str(to_step + 1)
+                step_number_el.classList.remove("step-number-rolling")
+
+            # Update number after animation
+            window.setTimeout(create_proxy(end_animation), 600)
+
+            window.console.log(f"🎰 Animated step number from {from_step + 1} to {to_step + 1}")
+
+        except Exception as e:
+            window.console.error(f"❌ Error animating step number: {e}")
+
+    # ============================================
     # HELPER METHODS - Time Tracking
     # ============================================
 
@@ -5368,6 +5424,24 @@ class ProblemSolverApp:
         # Convert LaTeX for display (handle matrices and row operations)
         display_latex = self._convert_for_display(latex)
 
+        # ✅ Get actual elapsed time from tracking system if available
+        prob_idx = self.current_problem_index
+        if time_taken is None or time_taken == 0:
+            # Try to get from time tracking system
+            time_summary = self.get_step_time_summary(prob_idx, step_idx)
+            if attempt_type == "submit":
+                # For first submit, use first_attempt time
+                time_taken = time_summary.get("first_attempt", 0)
+            else:
+                # For edits/finalize, use total time
+                time_taken = time_summary.get("total_time", 0)
+
+        # Format time nicely
+        if time_taken > 0:
+            time_str = f"{time_taken:.1f}s"
+        else:
+            time_str = "0s"
+
         # Create entry
         entry = document.createElement("div")
         entry.className = "attempt-entry-wrapper"
@@ -5384,7 +5458,7 @@ class ProblemSolverApp:
 
         entry.innerHTML = f"""
         <div style='font-weight:700;font-size:15px;'>
-            {step_label}: {status_text} ({time_taken if time_taken else 0}s)
+            {step_label}: {status_text} ⏱️ {time_str}
         </div>
         <div style='margin-top:6px;padding:8px;background:#fff;border-radius:6px;overflow-x:auto;'>
             $$\\displaystyle {display_latex}$$
@@ -6221,7 +6295,7 @@ class ProblemSolverApp:
 
       step_div.innerHTML = f"""
       <div style='font-weight:700;margin-bottom:8px;'>
-          Step {step_idx+1} of {total_steps} {must_correct_badge}
+          Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
@@ -6294,7 +6368,7 @@ class ProblemSolverApp:
 
       step_div.innerHTML = f"""
       <div style='font-weight:700;margin-bottom:8px;'>
-          Step {step_idx+1} of {total_steps} {must_correct_badge}
+          Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
@@ -6361,7 +6435,7 @@ class ProblemSolverApp:
 
       step_div.innerHTML = f"""
       <div style='font-weight:700;margin-bottom:8px;'>
-          Step {step_idx+1} of {total_steps} {must_correct_badge}
+          Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
@@ -6409,7 +6483,7 @@ class ProblemSolverApp:
 
       html = f"""
           <div class='step-header'>
-              <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>Step {step_idx + 1} of {total_steps}</div>
+              <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps}</div>
           </div>
 
           <div class='step-description'>
@@ -6527,7 +6601,7 @@ class ProblemSolverApp:
               html_content = f"""
                   <div class='step-header'>
                       <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>
-                          Step {step_idx + 1} of {total_steps} {must_correct_badge}
+                          Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps} {must_correct_badge}
                       </div>
                   </div>
 
@@ -6574,7 +6648,7 @@ class ProblemSolverApp:
               html_content = f"""
                   <div class='step-header'>
                       <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>
-                          Step {step_idx + 1} of {total_steps} {must_correct_badge}
+                          Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps} {must_correct_badge}
                       </div>
                   </div>
 
@@ -7616,6 +7690,10 @@ class ProblemSolverApp:
                       next_container.style.display = "block"
                       next_container.scrollIntoView({'behavior': 'smooth', 'block': 'center'})
                       window.console.log(f"✅ Showing next step: {next_step_idx}")
+
+                      # ✅ Animate step number if transitioning from current step
+                      if step_idx != next_step_idx:
+                          self.animate_step_number(step_idx, next_step_idx)
 
                       # Render MathJax for next step
                       def render_mathjax(retry_count=0):
@@ -8707,6 +8785,9 @@ class ProblemSolverApp:
           next_container = self.solve_state[step_idx + 1]["container"]
           next_container.style.display = "block"
           next_container.classList.add("active")
+
+          # ✅ Animate step number transition
+          self.animate_step_number(step_idx, step_idx + 1)
 
           # ✅ Render MathJax for the newly visible step
           def render_step_mathjax(retry_count=0):
