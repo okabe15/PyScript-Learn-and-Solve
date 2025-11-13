@@ -4281,60 +4281,60 @@ class ProblemSolverApp:
 
       window.console.log(f"Question: {question[:100]}...")
       window.console.log(f"User answer: {user_answer}")
-        
-        # Create question with blank
-        q_div = document.createElement("div")
-        q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
-        
-        # Replace ___ with input field
-        if "___" in question:
-            parts = question.split("___")
-            
-            span1 = document.createElement("span")
-            span1.textContent = parts[0]
-            q_div.appendChild(span1)
-            
-            input_field = document.createElement("input")
-            input_field.type = "text"
-            input_field.className = "fill-blank-input"
-            input_field.style.cssText = "border:2px solid #cbd5e1;border-radius:6px;padding:8px 12px;min-width:150px;font-size:15px;margin:0 4px;transition:all 0.2s;"
-            input_field.placeholder = "Your answer..."
-            
-            if user_answer and len(user_answer) > 0:
-                input_field.value = user_answer[0]
-            
-            # Add focus styling
-            input_field.addEventListener("focus", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#3b82f6')))
-            input_field.addEventListener("blur", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#cbd5e1')))
-            
-            q_div.appendChild(input_field)
-            
-            if len(parts) > 1:
-                span2 = document.createElement("span")
-                span2.textContent = parts[1]
-                q_div.appendChild(span2)
-        else:
-            q_div.innerHTML = question
-            
-            # Add input below
-            input_field = document.createElement("input")
-            input_field.type = "text"
-            input_field.className = "fill-blank-input"
-            input_field.style.cssText = "border:2px solid #cbd5e1;border-radius:6px;padding:8px 12px;width:100%;font-size:15px;margin-top:12px;transition:all 0.2s;"
-            input_field.placeholder = "Your answer..."
-            
-            if user_answer and len(user_answer) > 0:
-                input_field.value = user_answer[0]
-            
-            # Add focus styling
-            input_field.addEventListener("focus", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#3b82f6')))
-            input_field.addEventListener("blur", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#cbd5e1')))
-            
-            container.appendChild(q_div)
-            container.appendChild(input_field)
-            return
-        
-        container.appendChild(q_div)
+
+      # Create question with blank
+      q_div = document.createElement("div")
+      q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
+
+      # Replace ___ with input field
+      if "___" in question:
+          parts = question.split("___")
+
+          span1 = document.createElement("span")
+          span1.textContent = parts[0]
+          q_div.appendChild(span1)
+
+          input_field = document.createElement("input")
+          input_field.type = "text"
+          input_field.className = "fill-blank-input"
+          input_field.style.cssText = "border:2px solid #cbd5e1;border-radius:6px;padding:8px 12px;min-width:150px;font-size:15px;margin:0 4px;transition:all 0.2s;"
+          input_field.placeholder = "Your answer..."
+
+          if user_answer and len(user_answer) > 0:
+              input_field.value = user_answer[0]
+
+          # Add focus styling
+          input_field.addEventListener("focus", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#3b82f6')))
+          input_field.addEventListener("blur", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#cbd5e1')))
+
+          q_div.appendChild(input_field)
+
+          if len(parts) > 1:
+              span2 = document.createElement("span")
+              span2.textContent = parts[1]
+              q_div.appendChild(span2)
+      else:
+          q_div.innerHTML = question
+
+          # Add input below
+          input_field = document.createElement("input")
+          input_field.type = "text"
+          input_field.className = "fill-blank-input"
+          input_field.style.cssText = "border:2px solid #cbd5e1;border-radius:6px;padding:8px 12px;width:100%;font-size:15px;margin-top:12px;transition:all 0.2s;"
+          input_field.placeholder = "Your answer..."
+
+          if user_answer and len(user_answer) > 0:
+              input_field.value = user_answer[0]
+
+          # Add focus styling
+          input_field.addEventListener("focus", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#3b82f6')))
+          input_field.addEventListener("blur", create_proxy(lambda e: setattr(e.target.style, 'borderColor', '#cbd5e1')))
+
+          container.appendChild(q_div)
+          container.appendChild(input_field)
+          return
+
+      container.appendChild(q_div)
 
     def _recreate_freestyle_step(self, container, step_idx, saved_step, original_step_data):
       """Recreate a freestyle/math-expression step for editing"""
