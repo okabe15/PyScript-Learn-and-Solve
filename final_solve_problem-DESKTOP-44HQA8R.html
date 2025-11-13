@@ -4749,7 +4749,103 @@ class ProblemSolverApp:
         close_history_btn = document.querySelector("#closeCreditHistory")
         if close_history_btn:
             close_history_btn.addEventListener("click", create_proxy(lambda e: self.close_credit_history_modal(e)))
-    
+
+    # ============================================
+    # HELPER METHODS - Button Loading States
+    # ============================================
+
+    def set_button_loading(self, button, loading=True):
+        """Add or remove loading state from a button"""
+        if not button:
+            return
+
+        if loading:
+            button.classList.add("loading")
+            button.disabled = True
+        else:
+            button.classList.remove("loading")
+            button.disabled = False
+
+    # ============================================
+    # HELPER METHODS - Time Tracking
+    # ============================================
+
+    def start_step_timer(self, problem_idx, step_idx, is_first_attempt=True):
+        """Start timing a step"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            self.step_time_tracking[problem_idx] = {}
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            self.step_time_tracking[problem_idx][step_idx] = {
+                "first_attempt_start": None,
+                "first_attempt_time": None,
+                "edit_sessions": []
+            }
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        if is_first_attempt and step_time["first_attempt_start"] is None:
+            step_time["first_attempt_start"] = js.Date.now()
+            window.console.log(f"⏱️ Started timer for problem {problem_idx}, step {step_idx} (first attempt)")
+        else:
+            # Start a new edit session
+            step_time["edit_sessions"].append({"start": js.Date.now(), "end": None})
+            window.console.log(f"⏱️ Started edit session {len(step_time['edit_sessions'])} for problem {problem_idx}, step {step_idx}")
+
+    def end_step_timer(self, problem_idx, step_idx, is_first_attempt=True):
+        """End timing a step and return the elapsed time"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            return 0
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return 0
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+        elapsed = 0
+
+        if is_first_attempt and step_time["first_attempt_start"] is not None:
+            end_time = js.Date.now()
+            elapsed = (end_time - step_time["first_attempt_start"]) / 1000  # Convert to seconds
+            step_time["first_attempt_time"] = elapsed
+            step_time["first_attempt_start"] = None  # Clear start time
+            window.console.log(f"⏱️ First attempt completed in {elapsed:.1f}s for problem {problem_idx}, step {step_idx}")
+        else:
+            # End the current edit session
+            if step_time["edit_sessions"] and step_time["edit_sessions"][-1]["end"] is None:
+                end_time = js.Date.now()
+                session = step_time["edit_sessions"][-1]
+                elapsed = (end_time - session["start"]) / 1000
+                session["end"] = end_time
+                session["duration"] = elapsed
+                window.console.log(f"⏱️ Edit session {len(step_time['edit_sessions'])} completed in {elapsed:.1f}s for problem {problem_idx}, step {step_idx}")
+
+        return elapsed
+
+    def get_step_time_summary(self, problem_idx, step_idx):
+        """Get a summary of time spent on a step"""
+        if problem_idx not in self.step_time_tracking:
+            return {"first_attempt": 0, "total_edit_time": 0, "edit_count": 0}
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return {"first_attempt": 0, "total_edit_time": 0, "edit_count": 0}
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        first_attempt = step_time.get("first_attempt_time", 0) or 0
+        total_edit_time = sum(session.get("duration", 0) or 0 for session in step_time.get("edit_sessions", []))
+        edit_count = len(step_time.get("edit_sessions", []))
+
+        return {
+            "first_attempt": first_attempt,
+            "total_edit_time": total_edit_time,
+            "edit_count": edit_count,
+            "total_time": first_attempt + total_edit_time
+        }
+
     def show_page(self, page_name):
         # Hide all pages
         pages = document.querySelectorAll(".page")
