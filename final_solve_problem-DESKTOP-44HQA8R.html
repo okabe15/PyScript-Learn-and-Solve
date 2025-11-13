@@ -2836,16 +2836,21 @@ class ProblemSolverApp:
 
         review_container.appendChild(review_section)
 
-        # Render MathJax for all review content
-        if window.MathJax and window.MathJax.typesetPromise:
-            try:
-                window.MathJax.typesetPromise([review_section]).then(
-                    create_proxy(lambda result: window.console.log("✅ MathJax rendered for review section"))
-                ).catch(
-                    create_proxy(lambda err: window.console.error(f"❌ MathJax error: {err}"))
-                )
-            except Exception as e:
-                window.console.error(f"❌ Error calling MathJax: {e}")
+        # Render MathJax for all review content - with delay to ensure DOM is ready
+        def render_mathjax_for_review():
+            if window.MathJax and window.MathJax.typesetPromise:
+                try:
+                    window.console.log("🎨 Rendering MathJax for review section...")
+                    window.MathJax.typesetPromise([review_section]).then(
+                        create_proxy(lambda result: window.console.log("✅ MathJax rendered for review section"))
+                    ).catch(
+                        create_proxy(lambda err: window.console.error(f"❌ MathJax error: {err}"))
+                    )
+                except Exception as e:
+                    window.console.error(f"❌ Error calling MathJax: {e}")
+
+        # Call MathJax after a short delay to ensure DOM is fully updated
+        window.setTimeout(create_proxy(render_mathjax_for_review), 100)
 
         # Scroll to review
         review_section.scrollIntoView({'behavior': 'smooth', 'block': 'start'})

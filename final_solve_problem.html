@@ -3160,10 +3160,25 @@ class ProblemSolverApp:
         return problem_container
 
 
+    def _format_answer_for_display(self, answer):
+        """Format an answer for display with MathJax support"""
+        answer_str = str(answer)
+
+        # Check if it looks like LaTeX (contains backslashes or curly braces)
+        if '\\' in answer_str or ('{' in answer_str and '}' in answer_str):
+            # Wrap in delimiters for MathJax rendering
+            return f"\\({answer_str}\\)"
+        else:
+            # Plain text, return as is but escape HTML
+            import html
+            return html.escape(answer_str)
+
+
     def _create_step_review(self, prob_idx, step_idx, step_data):
         """Create review display for a single step"""
         step_container = document.createElement("div")
         step_container.className = "step-review"
+        step_container.id = f"stepReview_{prob_idx}_{step_idx}"
         step_container.style.cssText = """
             background: white;
             border: 1px solid #e2e8f0;
@@ -3217,14 +3232,16 @@ class ProblemSolverApp:
         """
 
         if user_answers:
+            # Format answer for display with MathJax support
             if len(user_answers) == 1:
-                answer_text = str(user_answers[0])
+                answer_text = self._format_answer_for_display(user_answers[0])
             else:
-                answer_text = ", ".join([str(ans) for ans in user_answers])
+                formatted_answers = [self._format_answer_for_display(ans) for ans in user_answers]
+                answer_text = ", ".join(formatted_answers)
 
             answer_div.innerHTML = f"""
                 <div style="font-weight: 600; color: #475569; margin-bottom: 4px;">Your Answer:</div>
-                <div style="color: #1e293b;">{answer_text}</div>
+                <div class="mathjax-content" style="color: #1e293b;">{answer_text}</div>
             """
         else:
             answer_div.innerHTML = '<div style="color: #64748b; font-style: italic;">No answer provided</div>'
@@ -3242,6 +3259,43 @@ class ProblemSolverApp:
             edit_btn.addEventListener("click", create_proxy(make_edit_handler(prob_idx, step_idx)))
 
         return step_container
+
+
+    def _refresh_step_review(self, prob_idx, step_idx):
+        """Refresh a single step's review display after editing"""
+        window.console.log(f"🔄 Refreshing step review: problem {prob_idx}, step {step_idx}")
+
+        # Find the existing step review element
+        step_review_elem = document.querySelector(f"#stepReview_{prob_idx}_{step_idx}")
+        if not step_review_elem:
+            window.console.warn(f"⚠️ Step review element not found for {prob_idx}_{step_idx}")
+            return
+
+        # Get updated step data from problem_states
+        if prob_idx not in self.problem_states or step_idx >= len(self.problem_states[prob_idx]):
+            window.console.error(f"❌ Step data not found in problem_states")
+            return
+
+        step_data = self.problem_states[prob_idx][step_idx]
+
+        # Create new step review
+        new_step_review = self._create_step_review(prob_idx, step_idx, step_data)
+
+        # Replace old with new
+        step_review_elem.replaceWith(new_step_review)
+
+        # Render MathJax for the new content
+        if window.MathJax and window.MathJax.typesetPromise:
+            try:
+                window.MathJax.typesetPromise([new_step_review]).then(
+                    create_proxy(lambda result: window.console.log("✅ MathJax rendered for updated step"))
+                ).catch(
+                    create_proxy(lambda err: window.console.error(f"❌ MathJax error: {err}"))
+                )
+            except Exception as e:
+                window.console.error(f"❌ Error calling MathJax: {e}")
+
+        window.console.log(f"✅ Step review refreshed for {prob_idx}_{step_idx}")
 
 
     def calculate_total_score(self):
@@ -3578,6 +3632,10 @@ class ProblemSolverApp:
                         # Show deferred message
                         self.show_score_deferred_message(edited_count)
                         window.console.log(f"⏳ Score display deferred (need {2 - edited_count} more edit(s))")
+
+                    # Refresh the step review with updated answer
+                    self._refresh_step_review(problem_idx, step_idx)
+                    window.console.log(f"✅ Step review refreshed for problem {problem_idx}, step {step_idx}")
 
                     # Return to review section
                     self.cancel_edit_from_review(problem_idx)
