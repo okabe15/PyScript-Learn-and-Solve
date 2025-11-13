@@ -3262,6 +3262,7 @@ class ProblemSolverApp:
                 window.console.log(f"✅ First edit for problem {problem_idx}")
 
             # Update last edit timestamp
+            import js
             self.score_display_manager["last_edit_time"] = js.Date.now()
 
             # Determine if score should be displayed NOW
@@ -7657,8 +7658,8 @@ class ProblemSolverApp:
       window.console.log(f"📊 TOTAL: {total_score:.2f}/{max_score:.2f} = {percentage:.2f}%")
       window.console.log("=" * 60)
 
-      # ✅ FIXED: Return problem_scores dict instead of percentage
-      return (total_score, max_score, problem_scores)
+      # Return total_score, max_score, and percentage (not problem_scores)
+      return (total_score, max_score, percentage)
 
 
     def _calculate_mc_multiple_score(self, step_data, step_state):
