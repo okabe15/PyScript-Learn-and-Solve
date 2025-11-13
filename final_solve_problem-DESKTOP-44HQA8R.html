@@ -895,6 +895,28 @@ print("✅ pyscript module created and registered")
       pointer-events: none;
     }
 
+    /* Button loading states */
+    .btn.loading {
+      position: relative;
+      color: transparent !important;
+      pointer-events: none;
+    }
+
+    .btn.loading::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: 50%;
+      left: 50%;
+      margin-left: -8px;
+      margin-top: -8px;
+      border: 2px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 0.6s linear infinite;
+    }
+
     </style>
   </head>
   <body>
@@ -2646,47 +2668,61 @@ class ScoreRecalculationTracker:
         if self.timer_handle:
             window.clearTimeout(self.timer_handle)
             self.timer_handle = None
-    
-    def add_edit(self, problem_idx, step_idx, new_answer):
-        """Called when user edits an answer"""
-        import datetime
-        
-        self.current_problem_idx = problem_idx
-        
-        # Create a unique key for this edit (global across all problems)
-        edit_key = (problem_idx, step_idx)
-        
-        # ✅ Track if this is a first-time edit BEFORE adding to ever_edited_steps
-        is_first_time_edit = edit_key not in self.ever_edited_steps
-        
-        # Add to current session
-        self.edited_steps.add(edit_key)
-        
-        # ✅ Track first-time status for this session
-        if is_first_time_edit:
-            self.first_time_edits_in_session.add(edit_key)
-        
-        # Add to all-time tracking
-        self.ever_edited_steps.add(edit_key)
-        
-        self.last_edit_time = datetime.datetime.now()
-        self.pending_edits[edit_key] = new_answer
-        
-        window.console.log(f"📝 Edit tracked: problem {problem_idx}, step {step_idx}, first-time: {is_first_time_edit}")
-        window.console.log(f"   Current session: {len(self.edited_steps)} edits, {len(self.first_time_edits_in_session)} first-time")
-        window.console.log(f"   Ever edited (global): {len(self.ever_edited_steps)}")
-        
-        # Cancel existing timer if any
+
+    def full_reset(self):
+        """Full reset including ever_edited_steps - called when new problem set is loaded"""
+        window.console.log("🔄 FULL reset of score recalculation tracker (new problem set)")
+        self.edited_steps.clear()
+        self.first_time_edits_in_session.clear()
+        self.ever_edited_steps.clear()  # ✅ Also clear all-time tracking
+        self.pending_edits.clear()
+        self.last_edit_time = None
         if self.timer_handle:
             window.clearTimeout(self.timer_handle)
             self.timer_handle = None
-        
+
+    def add_edit(self, problem_idx, step_idx, new_answer):
+        """Called when user edits an answer"""
+        import datetime
+
+        self.current_problem_idx = problem_idx
+
+        # Create a unique key for this edit (global across all problems)
+        edit_key = (problem_idx, step_idx)
+
+        # ✅ Track if this is a first-time edit BEFORE adding to ever_edited_steps
+        is_first_time_edit = edit_key not in self.ever_edited_steps
+
+        # Add to current session
+        self.edited_steps.add(edit_key)
+
+        # ✅ Track first-time status for this session
+        if is_first_time_edit:
+            self.first_time_edits_in_session.add(edit_key)
+
+        # Add to all-time tracking
+        self.ever_edited_steps.add(edit_key)
+
+        self.last_edit_time = datetime.datetime.now()
+        self.pending_edits[edit_key] = new_answer
+
+        window.console.log(f"📝 Edit tracked: problem {problem_idx}, step {step_idx}, first-time: {is_first_time_edit}")
+        window.console.log(f"   Current session: {len(self.edited_steps)} edits, {len(self.first_time_edits_in_session)} first-time")
+        window.console.log(f"   Ever edited (global): {len(self.ever_edited_steps)}")
+
+        # ✅ ALWAYS cancel existing timer and start a new one (restart on each edit)
+        if self.timer_handle:
+            window.clearTimeout(self.timer_handle)
+            self.timer_handle = None
+            window.console.log("⏱️ Timer restarted due to new edit")
+
         # ✅ Check if we have at least 2 first-time edits in current session
         if len(self.first_time_edits_in_session) >= 2:
             window.console.log("✅ At least 2 first-time edits detected (global) - triggering immediate recalculation")
             self.trigger_recalculation("2_edits")
         else:
             window.console.log(f"⏱️ Only {len(self.first_time_edits_in_session)} first-time edit(s) - starting 5-minute timer")
+            # ✅ Always start a fresh 5-minute timer on each edit
             def timer_callback():
                 self.trigger_recalculation("5_minutes")
             self.timer_handle = window.setTimeout(create_proxy(timer_callback), 5 * 60 * 1000)
@@ -4645,7 +4681,11 @@ class ProblemSolverApp:
             "pending_percentage": 0
         }
         self.score_tracker = ScoreRecalculationTracker(self)
-    
+
+        # ✅ Time tracking for steps
+        # Format: {problem_idx: {step_idx: {"first_attempt_time": seconds, "edit_sessions": [session_times]}}}
+        self.step_time_tracking = {}
+
     def init(self):
         # Initialize MathQuill
         if hasattr(window, 'MathQuill'):
@@ -4709,7 +4749,103 @@ class ProblemSolverApp:
         close_history_btn = document.querySelector("#closeCreditHistory")
         if close_history_btn:
             close_history_btn.addEventListener("click", create_proxy(lambda e: self.close_credit_history_modal(e)))
-    
+
+    # ============================================
+    # HELPER METHODS - Button Loading States
+    # ============================================
+
+    def set_button_loading(self, button, loading=True):
+        """Add or remove loading state from a button"""
+        if not button:
+            return
+
+        if loading:
+            button.classList.add("loading")
+            button.disabled = True
+        else:
+            button.classList.remove("loading")
+            button.disabled = False
+
+    # ============================================
+    # HELPER METHODS - Time Tracking
+    # ============================================
+
+    def start_step_timer(self, problem_idx, step_idx, is_first_attempt=True):
+        """Start timing a step"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            self.step_time_tracking[problem_idx] = {}
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            self.step_time_tracking[problem_idx][step_idx] = {
+                "first_attempt_start": None,
+                "first_attempt_time": None,
+                "edit_sessions": []
+            }
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        if is_first_attempt and step_time["first_attempt_start"] is None:
+            step_time["first_attempt_start"] = js.Date.now()
+            window.console.log(f"⏱️ Started timer for problem {problem_idx}, step {step_idx} (first attempt)")
+        else:
+            # Start a new edit session
+            step_time["edit_sessions"].append({"start": js.Date.now(), "end": None})
+            window.console.log(f"⏱️ Started edit session {len(step_time['edit_sessions'])} for problem {problem_idx}, step {step_idx}")
+
+    def end_step_timer(self, problem_idx, step_idx, is_first_attempt=True):
+        """End timing a step and return the elapsed time"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            return 0
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return 0
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+        elapsed = 0
+
+        if is_first_attempt and step_time["first_attempt_start"] is not None:
+            end_time = js.Date.now()
+            elapsed = (end_time - step_time["first_attempt_start"]) / 1000  # Convert to seconds
+            step_time["first_attempt_time"] = elapsed
+            step_time["first_attempt_start"] = None  # Clear start time
+            window.console.log(f"⏱️ First attempt completed in {elapsed:.1f}s for problem {problem_idx}, step {step_idx}")
+        else:
+            # End the current edit session
+            if step_time["edit_sessions"] and step_time["edit_sessions"][-1]["end"] is None:
+                end_time = js.Date.now()
+                session = step_time["edit_sessions"][-1]
+                elapsed = (end_time - session["start"]) / 1000
+                session["end"] = end_time
+                session["duration"] = elapsed
+                window.console.log(f"⏱️ Edit session {len(step_time['edit_sessions'])} completed in {elapsed:.1f}s for problem {problem_idx}, step {step_idx}")
+
+        return elapsed
+
+    def get_step_time_summary(self, problem_idx, step_idx):
+        """Get a summary of time spent on a step"""
+        if problem_idx not in self.step_time_tracking:
+            return {"first_attempt": 0, "total_edit_time": 0, "edit_count": 0}
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return {"first_attempt": 0, "total_edit_time": 0, "edit_count": 0}
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        first_attempt = step_time.get("first_attempt_time", 0) or 0
+        total_edit_time = sum(session.get("duration", 0) or 0 for session in step_time.get("edit_sessions", []))
+        edit_count = len(step_time.get("edit_sessions", []))
+
+        return {
+            "first_attempt": first_attempt,
+            "total_edit_time": total_edit_time,
+            "edit_count": edit_count,
+            "total_time": first_attempt + total_edit_time
+        }
+
     def show_page(self, page_name):
         # Hide all pages
         pages = document.querySelectorAll(".page")
@@ -4826,19 +4962,32 @@ class ProblemSolverApp:
             
             if not problems:
                 raise ValueError("No problems found in data")
-            
+
             # Clear and set new data
             self.problem_set = problems
             self.problem_states = {}
             self.current_problem_index = None
-            
+
+            # ✅ FULL RESET of score tracker when new problem set is loaded
+            if hasattr(self, 'score_tracker') and self.score_tracker:
+                self.score_tracker.full_reset()
+                window.console.log("✅ Score tracker fully reset for new problem set")
+
+            # ✅ Reset score display manager for new problem set
+            if hasattr(self, 'score_display_manager'):
+                self.score_display_manager["last_edit_time"] = None
+                self.score_display_manager["edited_problems"] = set()
+                self.score_display_manager["pending_score_update"] = False
+                self.score_display_manager["pending_percentage"] = 0
+                window.console.log("✅ Score display manager reset for new problem set")
+
             # Update UI
             self.update_problem_set_info(description)
             self.render_problems()
-            
+
             window.alert(f"✅ Loaded {len(problems)} problems")
             self.show_page("problems")
-            
+
             # Save
             def delayed_save():
                 self.save_to_storage()
