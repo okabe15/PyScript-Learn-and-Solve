@@ -5334,6 +5334,10 @@ class ProblemSolverApp:
 
                   window.console.log(f"✅ Reopened to step {first_unfinished}")
 
+                  # ✅ Start timer for the reopened step
+                  self.start_step_timer(index, first_unfinished, is_first_attempt=True)
+                  window.console.log(f"⏱️ Started timer for reopened step {first_unfinished}")
+
           # Re-render MathJax when reopening
           def rerender_mathjax(retry_count=0):
               max_retries = 3
@@ -6204,6 +6208,10 @@ class ProblemSolverApp:
               step["container"].classList.remove("active")
 
       window.console.log(f"✅ Showing step {first_unfinished_idx}")
+
+      # ✅ Start timer for the first shown step
+      self.start_step_timer(index, first_unfinished_idx, is_first_attempt=True)
+      window.console.log(f"⏱️ Started timer for step {first_unfinished_idx}")
 
       # Scroll to step
       def scroll_to_step():
@@ -7153,6 +7161,19 @@ class ProblemSolverApp:
                         next_container.scrollIntoView({'behavior': 'smooth', 'block': 'center'})
                         window.console.log(f"✅ Showing next step: {next_step_idx}")
 
+                        # ✅ Stop timer for the finalized step and start timer for next step
+                        if step_idx != next_step_idx:
+                            # Stop timer for the step we're leaving
+                            elapsed = self.end_step_timer(current_prob_idx, step_idx, is_first_attempt=True)
+                            window.console.log(f"⏱️ Stopped timer for finalized step {step_idx} (elapsed: {elapsed:.1f}s)")
+
+                            # Start timer for the new step
+                            self.start_step_timer(current_prob_idx, next_step_idx, is_first_attempt=True)
+                            window.console.log(f"⏱️ Started timer for step {next_step_idx}")
+
+                            # Animate step number
+                            self.animate_step_number(step_idx, next_step_idx)
+
                       
     def show_problem_completion_banner(self, prob_idx):
         """Show a banner when a problem is completed"""
@@ -7691,8 +7712,17 @@ class ProblemSolverApp:
                       next_container.scrollIntoView({'behavior': 'smooth', 'block': 'center'})
                       window.console.log(f"✅ Showing next step: {next_step_idx}")
 
-                      # ✅ Animate step number if transitioning from current step
+                      # ✅ Stop timer for current step and start timer for next step
                       if step_idx != next_step_idx:
+                          # Stop timer for the step we're leaving
+                          elapsed = self.end_step_timer(current_prob_idx, step_idx, is_first_attempt=True)
+                          window.console.log(f"⏱️ Stopped timer for step {step_idx} (elapsed: {elapsed:.1f}s)")
+
+                          # Start timer for the new step
+                          self.start_step_timer(current_prob_idx, next_step_idx, is_first_attempt=True)
+                          window.console.log(f"⏱️ Started timer for step {next_step_idx}")
+
+                          # Animate step number
                           self.animate_step_number(step_idx, next_step_idx)
 
                       # Render MathJax for next step
