@@ -3151,38 +3151,24 @@ class ProblemSolverApp:
 
             elif step_type in ["freestyle", "math-expression"]:
                 window.console.log("🎨 Capturing freestyle/math-expression answer")
-                mq_field = container.querySelector(".math-input")
-                if mq_field:
-                    mq_span = mq_field.querySelector(".mq-editable-field")
-                    if mq_span:
-                        try:
-                            # Try to get MathQuill instance
-                            mq_instance = window.MQ.MathField(mq_span)
-                            latex = mq_instance.latex()
-                            if latex and latex.strip():
-                                new_answer = [latex]
-                                window.console.log(f"✅ Captured LaTeX: {latex}")
-                            else:
-                                window.console.warn("⚠️ Empty LaTeX captured")
-                                window.alert("⚠️ Please enter a mathematical expression before saving")
-                                return
-                        except Exception as e:
-                            window.console.error(f"⚠️ Error capturing LaTeX: {e}")
-                            # Fallback to text content
-                            text_content = mq_span.textContent or mq_span.innerText
-                            if text_content and text_content.strip():
-                                new_answer = [text_content.strip()]
-                                window.console.log(f"⚠️ Using text content as fallback: {new_answer}")
-                            else:
-                                window.alert("⚠️ Please enter a mathematical expression before saving")
-                                return
-                    else:
-                        window.console.error("❌ MathQuill span not found")
-                        window.alert("❌ Error: Math field not found")
+                # ✅ Use the stored MathQuill instance
+                if hasattr(container, 'mq_field') and container.mq_field:
+                    try:
+                        latex = container.mq_field.latex()
+                        if latex and latex.strip():
+                            new_answer = [latex]
+                            window.console.log(f"✅ Captured LaTeX: {latex}")
+                        else:
+                            window.console.warn("⚠️ Empty LaTeX captured")
+                            window.alert("⚠️ Please enter a mathematical expression before saving")
+                            return
+                    except Exception as e:
+                        window.console.error(f"⚠️ Error capturing LaTeX: {e}")
+                        window.alert(f"❌ Error capturing answer: {str(e)}")
                         return
                 else:
-                    window.console.error("❌ Math input field not found")
-                    window.alert("❌ Error: Math input container not found")
+                    window.console.error("❌ MathQuill instance not found")
+                    window.alert("❌ Error: Math field not properly initialized")
                     return
 
             else:
@@ -3946,33 +3932,28 @@ class ProblemSolverApp:
         
         elif step_type in ["freestyle", "math-expression"]:
             window.console.log("🎨 Enabling freestyle math editing")
-            
-            # Find MathQuill field
-            mq_field = container.querySelector(".math-input")
-            if mq_field:
-                # Re-enable the field
-                mq_field.style.pointerEvents = "auto"
-                mq_field.style.opacity = "1"
-                mq_field.style.cursor = "text"
-                
-                # Get the MathQuill instance
-                mq_span = mq_field.querySelector(".mq-editable-field")
-                if mq_span:
-                    try:
-                        # Make the field editable
-                        mq_instance = window.MQ.MathField(mq_span)
-                        mq_instance.focus()
-                        window.console.log("✅ MathQuill field re-enabled and focused")
-                    except Exception as e:
-                        window.console.error(f"⚠️ Could not re-enable MathQuill: {e}")
-                        # Try alternative approach
-                        mq_span.contentEditable = "true"
-                        mq_field.style.border = "2px solid #3b82f6"
-            
+
+            # ✅ Get the stored MathQuill instance
+            if hasattr(container, 'mq_field') and container.mq_field:
+                try:
+                    # Focus the existing MathQuill field
+                    container.mq_field.focus()
+                    window.console.log("✅ MathQuill field focused")
+                except Exception as e:
+                    window.console.error(f"⚠️ Could not focus MathQuill: {e}")
+            else:
+                window.console.warn("⚠️ MathQuill instance not found on container")
+
+            # Make sure the input container is visible and styled for editing
+            input_container = container.querySelector(".math-input-container")
+            if input_container:
+                input_container.style.pointerEvents = "auto"
+                input_container.style.opacity = "1"
+
             # Show instruction for freestyle editing
             freestyle_hint = document.createElement("div")
             freestyle_hint.style.cssText = "background:#fef9c3;border:1px solid #eab308;padding:12px;border-radius:6px;margin-bottom:12px;font-size:14px;color:#854d0e;"
-            freestyle_hint.innerHTML = "💡 <strong>Tip:</strong> Click in the math field above to edit your answer. Use your keyboard or the virtual buttons below."
+            freestyle_hint.innerHTML = "💡 <strong>Tip:</strong> Click in the math field above to edit your answer. Use your keyboard to enter mathematical expressions."
             edit_wrapper.appendChild(freestyle_hint)
         
         # Create button container
@@ -4358,24 +4339,46 @@ class ProblemSolverApp:
       q_div.innerHTML = question_html
       container.appendChild(q_div)
 
-      # Create math input field placeholder
+      # Create math input field container
       input_container = document.createElement("div")
       input_container.className = "math-input-container"
       input_container.style.cssText = "border:2px solid #cbd5e1;border-radius:8px;padding:12px;background:white;margin-top:12px;"
 
-      math_field = document.createElement("div")
-      math_field.className = "math-input"
-      math_field.style.cssText = "min-height:40px;font-size:16px;"
+      # ✅ Create span element for MathQuill initialization
+      math_field = document.createElement("span")
+      math_field.className = "math-input step-answer"
+      math_field.style.cssText = "min-height:40px;font-size:16px;display:block;"
 
       input_container.appendChild(math_field)
       container.appendChild(input_container)
 
-      # Show previous answer if any
-      if user_answer and len(user_answer) > 0:
-          prev_answer = document.createElement("div")
-          prev_answer.style.cssText = "margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;font-size:14px;color:#475569;"
-          prev_answer.innerHTML = f"<strong>Previous answer:</strong> {user_answer[0]}"
-          container.appendChild(prev_answer)
+      # ✅ Initialize MathQuill field
+      if self.MQ:
+          try:
+              mq_instance = self.MQ.MathField(math_field)
+              # Set previous answer if available
+              if user_answer and len(user_answer) > 0:
+                  mq_instance.latex(user_answer[0])
+                  window.console.log(f"✅ Set previous answer: {user_answer[0]}")
+              # Store instance for later access
+              container.mq_field = mq_instance
+              window.console.log("✅ MathQuill field initialized")
+          except Exception as e:
+              window.console.error(f"❌ Error initializing MathQuill: {e}")
+              # Fallback: show previous answer as text
+              if user_answer and len(user_answer) > 0:
+                  prev_answer = document.createElement("div")
+                  prev_answer.style.cssText = "margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;font-size:14px;color:#475569;"
+                  prev_answer.innerHTML = f"<strong>Previous answer:</strong> {user_answer[0]}"
+                  container.appendChild(prev_answer)
+      else:
+          window.console.error("❌ MathQuill not available")
+          # Show previous answer as text
+          if user_answer and len(user_answer) > 0:
+              prev_answer = document.createElement("div")
+              prev_answer.style.cssText = "margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;font-size:14px;color:#475569;"
+              prev_answer.innerHTML = f"<strong>Previous answer:</strong> {user_answer[0]}"
+              container.appendChild(prev_answer)
 
     def __init__(self):
         self.problem_set = []
