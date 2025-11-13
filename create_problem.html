@@ -4377,10 +4377,17 @@ class Step:
         elif self.step_type == "fill-blank":
             # Fill-in-the-blank is now text-only
             correct_answers = []
-            for blank in self.blanks:
+            window.console.log(f"📝 Collecting fill-blank answers for step {self.step_index}")
+            window.console.log(f"📝 self.blanks length: {len(self.blanks)}")
+
+            for i, blank in enumerate(self.blanks):
                 value = blank['text_input'].value.strip()
+                window.console.log(f"📝 Blank {i}: value = '{value}'")
                 if value:
                     correct_answers.append({"value": value, "display": value})
+                    window.console.log(f"✅ Added answer: '{value}'")
+
+            window.console.log(f"📝 Total correct_answers collected: {len(correct_answers)}")
 
             # ✅ Get requireCorrect checkbox value
             require_checkbox = self.type_content_el.querySelector(".requireCorrectCheckbox")
@@ -4394,6 +4401,8 @@ class Step:
                 "correct_answers": correct_answers,
                 "requireCorrect": require_correct
             })
+
+            window.console.log(f"📦 Fill-blank data to save: blank_config={base_data.get('blank_config')}, correct_answers={correct_answers}, requireCorrect={require_correct}")
 
         return base_data
         
