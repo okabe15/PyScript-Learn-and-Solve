@@ -3262,6 +3262,7 @@ class ProblemSolverApp:
                 window.console.log(f"✅ First edit for problem {problem_idx}")
 
             # Update last edit timestamp
+            import js
             self.score_display_manager["last_edit_time"] = js.Date.now()
 
             # Determine if score should be displayed NOW
@@ -3672,6 +3673,15 @@ class ProblemSolverApp:
           # Show the edit UI
           self._show_step_edit_ui(problem_idx, step_idx)
 
+          # Render MathJax for problem description and step content
+          if hasattr(window, 'MathJax') and hasattr(window.MathJax, 'typesetPromise'):
+              window.console.log("🎨 Rendering MathJax for edit mode...")
+              window.MathJax.typesetPromise([problem_body]).then(
+                  create_proxy(lambda result: window.console.log("✅ MathJax rendered in edit mode"))
+              ).catch(
+                  create_proxy(lambda e: window.console.error(f"⚠️ MathJax error: {e}"))
+              )
+
       except Exception as e:
           window.console.error(f"❌ Error creating step UI: {e}")
           import traceback
@@ -3840,6 +3850,15 @@ class ProblemSolverApp:
         # Store the solve_state
         self.solve_states[problem_idx] = solve_state
         window.console.log(f"✅ solve_state recreated with {len(solve_state)} steps")
+
+        # Render MathJax for all recreated steps
+        if hasattr(window, 'MathJax') and hasattr(window.MathJax, 'typesetPromise'):
+            window.console.log("🎨 Rendering MathJax for recreated steps...")
+            window.MathJax.typesetPromise([body]).then(
+                create_proxy(lambda result: window.console.log("✅ MathJax rendered for recreated steps"))
+            ).catch(
+                create_proxy(lambda e: window.console.error(f"⚠️ MathJax error: {e}"))
+            )
 
         return True
 
@@ -4078,38 +4097,44 @@ class ProblemSolverApp:
         q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
         q_div.innerHTML = question_html
         container.appendChild(q_div)
-        
+
         # Create options
         for i, option in enumerate(options):
             # Handle both string and dict options
             if isinstance(option, dict):
-                opt_value = option.get("value", f"Option_{i}")
-                opt_label = option.get("label", opt_value)
+                # Use label (A, B, C, D) as the value
+                opt_value = option.get("label", f"Option_{i}")
+                # Render the rich content
+                opt_content = option.get("content", [])
+                if opt_content and isinstance(opt_content, list):
+                    opt_text = self.render_content_blocks(opt_content)
+                else:
+                    opt_text = str(option.get("label", f"Option {i+1}"))
             else:
                 opt_value = option
-                opt_label = option
-            
+                opt_text = option
+
             opt_container = document.createElement("div")
             opt_container.className = "mc-option"
             opt_container.style.cssText = "padding:12px;margin-bottom:8px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all 0.2s;background:white;"
-            
+
             radio = document.createElement("input")
             radio.type = "radio"
             radio.name = f"mc_single_{step_idx}"
             radio.value = opt_value
             radio.id = f"mc_single_{step_idx}_{i}"
             radio.style.cssText = "cursor:pointer;"
-            
+
             # Check if this was the user's answer
             if user_answer and opt_value in user_answer:
                 radio.checked = True
                 opt_container.style.borderColor = "#3b82f6"
                 opt_container.style.background = "#eff6ff"
-            
+
             label = document.createElement("label")
             label.htmlFor = radio.id
             label.style.cssText = "margin-left:8px;cursor:pointer;display:inline-block;width:calc(100% - 24px);"
-            label.textContent = opt_label
+            label.innerHTML = opt_text  # Use innerHTML to render math
             
             opt_container.appendChild(radio)
             opt_container.appendChild(label)
@@ -4168,33 +4193,39 @@ class ProblemSolverApp:
         # Create options
         for i, option in enumerate(options):
             if isinstance(option, dict):
-                opt_value = option.get("value", f"Option_{i}")
-                opt_label = option.get("label", opt_value)
+                # Use label (A, B, C, D) as the value
+                opt_value = option.get("label", f"Option_{i}")
+                # Render the rich content
+                opt_content = option.get("content", [])
+                if opt_content and isinstance(opt_content, list):
+                    opt_text = self.render_content_blocks(opt_content)
+                else:
+                    opt_text = str(option.get("label", f"Option {i+1}"))
             else:
                 opt_value = option
-                opt_label = option
-            
+                opt_text = option
+
             opt_container = document.createElement("div")
             opt_container.className = "mc-option"
             opt_container.style.cssText = "padding:12px;margin-bottom:8px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;background:white;transition:all 0.2s;"
-            
+
             checkbox = document.createElement("input")
             checkbox.type = "checkbox"
             checkbox.name = f"mc_multiple_{step_idx}"
             checkbox.value = opt_value
             checkbox.id = f"mc_multiple_{step_idx}_{i}"
             checkbox.style.cssText = "cursor:pointer;"
-            
+
             # Check if this was selected
             if opt_value in user_answers:
                 checkbox.checked = True
                 opt_container.style.borderColor = "#3b82f6"
                 opt_container.style.background = "#eff6ff"
-            
+
             label = document.createElement("label")
             label.htmlFor = checkbox.id
             label.style.cssText = "margin-left:8px;cursor:pointer;display:inline-block;width:calc(100% - 24px);"
-            label.textContent = opt_label
+            label.innerHTML = opt_text  # Use innerHTML to render math
             
             opt_container.appendChild(checkbox)
             opt_container.appendChild(label)
@@ -7657,8 +7688,8 @@ class ProblemSolverApp:
       window.console.log(f"📊 TOTAL: {total_score:.2f}/{max_score:.2f} = {percentage:.2f}%")
       window.console.log("=" * 60)
 
-      # ✅ FIXED: Return problem_scores dict instead of percentage
-      return (total_score, max_score, problem_scores)
+      # Return total_score, max_score, and percentage (not problem_scores)
+      return (total_score, max_score, percentage)
 
 
     def _calculate_mc_multiple_score(self, step_data, step_state):
