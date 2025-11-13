@@ -4881,6 +4881,27 @@ class ProblemSolverApp:
 
         return elapsed
 
+    def get_current_step_elapsed_time(self, problem_idx, step_idx):
+        """Get current elapsed time for a step without stopping the timer"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            return 0
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return 0
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        # If timer is currently running (first_attempt_start is set)
+        if step_time.get("first_attempt_start") is not None:
+            current_time = js.Date.now()
+            elapsed = (current_time - step_time["first_attempt_start"]) / 1000  # Convert to seconds
+            return elapsed
+
+        # Timer not running, return completed time if any
+        return step_time.get("first_attempt_time", 0) or 0
+
     def get_step_time_summary(self, problem_idx, step_idx):
         """Get a summary of time spent on a step"""
         if problem_idx not in self.step_time_tracking:
