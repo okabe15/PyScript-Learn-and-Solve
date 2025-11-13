@@ -3089,7 +3089,18 @@ class ProblemSolverApp:
                 window.alert("❌ Error: Step container not found")
                 return
 
+            # ✅ Get step_type from solve_state, or fallback to original problem data
             step_type = step.get("step_type", "unknown")
+
+            # If step_type is unknown, try to get it from original problem data
+            if step_type == "unknown":
+                if problem_idx < len(self.problem_set):
+                    problem = self.problem_set[problem_idx]
+                    steps = problem.get("steps", [])
+                    if step_idx < len(steps):
+                        step_type = steps[step_idx].get("type", "unknown")
+                        window.console.log(f"✅ Retrieved step_type from original data: {step_type}")
+
             window.console.log(f"📝 Step type: {step_type}")
 
             # ============================================
@@ -3709,66 +3720,85 @@ class ProblemSolverApp:
     def ensure_solve_state_for_edit(self, problem_idx):
         """Ensure solve_state exists for a completed problem before editing"""
         window.console.log(f"🔧 Ensuring solve_state exists for problem {problem_idx}")
-        
+
         # If solve_state already exists, we're good
         if problem_idx in self.solve_states:
             window.console.log(f"✅ solve_state already exists for problem {problem_idx}")
             return True
-        
+
         # ✅ Check if we have saved problem_states data
         if problem_idx not in self.problem_states:
             window.console.error(f"❌ No saved problem_states for problem {problem_idx}")
             window.alert("❌ Error: No saved data for this problem")
             return False
-        
+
         saved_steps = self.problem_states[problem_idx]
         if not saved_steps or len(saved_steps) == 0:
             window.console.error(f"❌ No saved steps for problem {problem_idx}")
             window.alert("❌ Error: No steps found for this problem")
             return False
-        
+
+        # ✅ Get the original problem from problem_set
+        if problem_idx >= len(self.problem_set):
+            window.console.error(f"❌ Invalid problem index: {problem_idx}")
+            window.alert("❌ Error: Invalid problem index")
+            return False
+
+        problem = self.problem_set[problem_idx]
+        original_steps = problem.get("steps", [])
+
+        if len(original_steps) != len(saved_steps):
+            window.console.warn(f"⚠️ Mismatch: {len(original_steps)} original steps vs {len(saved_steps)} saved steps")
+
         # Get the problem body
         body = document.querySelector(f"#problemBody{problem_idx}")
         if not body:
             window.console.error(f"❌ Problem body not found for problem {problem_idx}")
             window.alert("❌ Error: Problem container not found")
             return False
-        
-        window.console.log(f"🔧 Recreating solve_state with {len(saved_steps)} steps from saved data")
-        
+
+        window.console.log(f"🔧 Recreating solve_state with {len(saved_steps)} steps from original problem data")
+
         # Initialize solve_state array
         solve_state = []
-        
-        # ✅ Create container for each step based on saved data ONLY
+
+        # ✅ Create container for each step using ORIGINAL problem data for step type
         for step_idx, saved_step in enumerate(saved_steps):
-            step_type = saved_step.get("step_type", "unknown")
-            
+            # ✅ Get step type from ORIGINAL problem data, not saved data
+            if step_idx < len(original_steps):
+                original_step_data = original_steps[step_idx]
+                step_type = original_step_data.get("type", "unknown")
+            else:
+                window.console.error(f"❌ No original data for step {step_idx}")
+                original_step_data = {}
+                step_type = "unknown"
+
             window.console.log(f"📝 Creating step {step_idx} with type: {step_type}")
-            
+
             # Create step container
             container = document.createElement("div")
             container.id = f"stepContainer{step_idx}"
             container.className = "step-container"
             container.style.cssText = "display:none;margin-bottom:24px;padding:20px;background:#f8fafc;border-radius:12px;border:2px solid #e2e8f0;"
-            
+
             # Create step header
             step_header = document.createElement("div")
             step_header.style.cssText = "font-size:16px;font-weight:600;color:#1e293b;margin-bottom:16px;"
             step_header.innerHTML = f"📝 Step {step_idx + 1}"
             container.appendChild(step_header)
-            
-            # Create step content based on type using ONLY saved data
+
+            # Create step content based on type using ORIGINAL step data
             try:
                 if step_type == "multiple-choice-single":
-                    self._recreate_mc_single_step(container, step_idx, saved_step)
+                    self._recreate_mc_single_step(container, step_idx, saved_step, original_step_data)
                 elif step_type == "multiple-choice-multiple":
-                    self._recreate_mc_multiple_step(container, step_idx, saved_step)
+                    self._recreate_mc_multiple_step(container, step_idx, saved_step, original_step_data)
                 elif step_type == "true-false":
-                    self._recreate_true_false_step(container, step_idx, saved_step)
+                    self._recreate_true_false_step(container, step_idx, saved_step, original_step_data)
                 elif step_type == "fill-blank":
-                    self._recreate_fill_blank_step(container, step_idx, saved_step)
+                    self._recreate_fill_blank_step(container, step_idx, saved_step, original_step_data)
                 elif step_type in ["freestyle", "math-expression"]:
-                    self._recreate_freestyle_step(container, step_idx, saved_step)
+                    self._recreate_freestyle_step(container, step_idx, saved_step, original_step_data)
                 else:
                     window.console.error(f"❌ Unknown step type: {step_type}")
                     # Create a generic container anyway
@@ -3776,9 +3806,9 @@ class ProblemSolverApp:
                     error_msg.textContent = f"Unknown step type: {step_type}"
                     error_msg.style.cssText = "color:#ef4444;padding:12px;"
                     container.appendChild(error_msg)
-                
+
                 window.console.log(f"✅ Created container for step {step_idx}")
-                
+
             except Exception as e:
                 window.console.error(f"❌ Error creating step {step_idx}: {e}")
                 # Add error message to container
@@ -3786,59 +3816,72 @@ class ProblemSolverApp:
                 error_msg.textContent = f"Error creating step: {str(e)}"
                 error_msg.style.cssText = "color:#ef4444;padding:12px;background:#fee2e2;border-radius:6px;"
                 container.appendChild(error_msg)
-            
+
             # Add to body
             body.appendChild(container)
-            
+
             # Store in solve_state
             step_state = {
                 "container": container,
                 "step_type": step_type,
+                "step_data": original_step_data,  # ✅ Store original step data
                 "finished": saved_step.get("finished", True)
             }
             solve_state.append(step_state)
-        
+
         # Store the solve_state
         self.solve_states[problem_idx] = solve_state
         window.console.log(f"✅ solve_state recreated with {len(solve_state)} steps")
-        
+
         return True
 
     def _show_step_edit_ui(self, problem_idx, step_idx):
         """Show the edit UI for a specific step"""
         window.console.log(f"Showing edit UI for step {step_idx}")
-        
+
         if problem_idx not in self.solve_states:
             window.console.error("❌ No solve_state found")
             window.alert("❌ Error: Problem state not found")
             return
-        
+
         solve_state = self.solve_states[problem_idx]
-        
+
         if step_idx >= len(solve_state):
             window.console.error(f"❌ Invalid step index: {step_idx}")
             window.alert(f"❌ Error: Invalid step index {step_idx}")
             return
-        
+
         # ✅ Hide all steps first
         for i, s in enumerate(solve_state):
             if s.get("container"):
                 s["container"].style.display = "none"
-        
+
         # Hide global history if it exists
         global_history = document.querySelector(f"#globalHistory_{problem_idx}")
         if global_history:
             global_history.style.display = "none"
-        
+
         step = solve_state[step_idx]
         container = step.get("container")
-        
+
         if not container:
             window.console.error(f"❌ Container not found for step {step_idx}")
             window.alert("❌ Error: Step container not found")
             return
-        
+
+        # ✅ Get step_type from solve_state, or fallback to original problem data
         step_type = step.get("step_type", "unknown")
+
+        # If step_type is unknown, try to get it from original problem data
+        if step_type == "unknown":
+            if problem_idx < len(self.problem_set):
+                problem = self.problem_set[problem_idx]
+                steps = problem.get("steps", [])
+                if step_idx < len(steps):
+                    step_type = steps[step_idx].get("type", "unknown")
+                    window.console.log(f"✅ Retrieved step_type from original data: {step_type}")
+
+        window.console.log(f"📝 Step type for editing: {step_type}")
         
         # ✅ Show only this step
         container.style.display = "block"
