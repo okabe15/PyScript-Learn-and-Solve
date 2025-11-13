@@ -3497,6 +3497,7 @@ class ProblemSolverApp:
         """Check periodically if pending score updates should be displayed"""
         def check_and_display():
             if self.score_display_manager["pending_score_update"]:
+                import js
                 current_time = js.Date.now()
                 last_edit = self.score_display_manager["last_edit_time"]
 
