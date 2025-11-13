@@ -857,6 +857,44 @@ print("✅ pyscript module created and registered")
       }
     }
 
+    /* Step number counting animation */
+    @keyframes countUp {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .step-number-animate {
+      animation: countUp 0.4s ease-out;
+      display: inline-block;
+    }
+
+    /* Hide problem area with fade out */
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        max-height: 2000px;
+      }
+      to {
+        opacity: 0;
+        max-height: 0;
+        overflow: hidden;
+      }
+    }
+
+    .problem-area-hidden {
+      animation: fadeOut 0.5s ease-out forwards;
+      pointer-events: none;
+    }
+
     </style>
   </head>
   <body>
@@ -6474,6 +6512,9 @@ class ProblemSolverApp:
       """Handle finalization for math expression problems - checks structure"""
       window.console.log(f"🔍 Finalize step: problem {self.current_problem_index}, step {step_idx}")
 
+      # ✅ Animate step numbers when finalize is clicked
+      self._animate_step_numbers()
+
       if step_idx >= len(self.solve_state):
           window.console.error(f"❌ Invalid state")
           window.alert("Error: Invalid step state. Please reload the problem.")
@@ -7440,7 +7481,7 @@ class ProblemSolverApp:
                       window.setTimeout(create_proxy(render_mathjax), 100)
 
     def show_problem_completion_banner(self, prob_idx):
-        """Show a banner when a problem is completed"""
+        """Show a banner when a problem is completed and hide the problem-solving area"""
         # Find the problem body
         problem_body = document.querySelector(f"#problemBody{prob_idx}")
         if not problem_body:
@@ -7451,34 +7492,42 @@ class ProblemSolverApp:
         if existing_banner:
             existing_banner.remove()
 
+        # ✅ Hide all step containers (problem-solving area)
+        if prob_idx in self.solve_states:
+            for step in self.solve_states[prob_idx]:
+                container = step.get("container")
+                if container:
+                    container.classList.add("problem-area-hidden")
+                    # After animation completes, set display to none
+                    def hide_container(c):
+                        def do_hide():
+                            c.style.display = "none"
+                        return do_hide
+                    window.setTimeout(create_proxy(hide_container(container)), 500)
+
         # Create completion banner
         banner = document.createElement("div")
         banner.id = f"completionBanner_{prob_idx}"
         banner.style.cssText = """
             background: linear-gradient(135deg, #10b981, #059669);
             color: white;
-            padding: 20px;
+            padding: 32px;
             border-radius: 12px;
             margin: 20px 0;
             text-align: center;
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-            animation: slideIn 0.3s ease-out;
+            animation: slideIn 0.5s ease-out;
         """
 
-        # Calculate this problem's score
-        total_score, max_score, problem_scores = self.calculate_total_score()
-        prob_score_info = problem_scores.get(prob_idx, {'score': 0, 'max_score': 0, 'percentage': 0})
-
+        # ✅ No score displayed, just success message
         banner.innerHTML = f"""
-            <div style="font-size: 32px; margin-bottom: 8px;">🎉</div>
-            <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">
-                Problem {prob_idx + 1} Complete!
+            <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+            <div style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">
+                Congratulations!
             </div>
-            <!--
-            <div style="font-size: 16px; opacity: 0.9;">
-                Score: {prob_score_info['percentage']:.1f}% ({prob_score_info['score']:.1f}/{prob_score_info['max_score']:.1f} points)
+            <div style="font-size: 18px; opacity: 0.95;">
+                You've completed all steps for Problem {prob_idx + 1}
             </div>
-            -->
         """
 
         # Insert at top of problem body
@@ -7487,8 +7536,59 @@ class ProblemSolverApp:
         else:
             problem_body.appendChild(banner)
 
-        window.console.log(f"✅ Completion banner shown for problem {prob_idx}")
-    
+        window.console.log(f"✅ Completion banner shown and problem area hidden for problem {prob_idx}")
+
+    def _animate_step_numbers(self):
+      """Animate step numbers counting up when finalize button is clicked"""
+      try:
+          current_prob_idx = self.current_problem_index
+          if current_prob_idx is None or current_prob_idx not in self.solve_states:
+              return
+
+          # Count finished steps
+          finished_count = 0
+          for step in self.solve_states[current_prob_idx]:
+              if step.get("finished", False):
+                  finished_count += 1
+
+          total_steps = len(self.solve_states[current_prob_idx])
+
+          # Find the progress summary element in the problem header
+          problem_header = document.querySelector(f"#problemHeader{current_prob_idx}")
+          if not problem_header:
+              return
+
+          progress_summary = problem_header.querySelector(".progress-summary")
+          if not progress_summary:
+              return
+
+          # Animate counting from current to new count
+          start_count = finished_count - 1 if finished_count > 0 else 0
+          current_count = start_count
+
+          def count_animation(count):
+              def do_count():
+                  nonlocal current_count
+                  if current_count < finished_count:
+                      current_count += 1
+                      # Update display with animation class
+                      progress_color = "#10b981" if current_count == total_steps else "#f59e0b"
+                      progress_summary.innerHTML = f'<span class="step-number-animate">✅ {current_count}/{total_steps} completed</span>'
+                      progress_summary.style.color = progress_color
+
+                      # Continue animation
+                      if current_count < finished_count:
+                          window.setTimeout(create_proxy(count_animation(current_count)), 200)
+              return do_count
+
+          # Start animation
+          window.setTimeout(create_proxy(count_animation(current_count)), 100)
+
+      except Exception as e:
+          window.console.error(f"❌ Error animating step numbers: {e}")
+          import traceback
+          window.console.error(traceback.format_exc())
+
     def _finalize_step_ui(self, step_idx):
       """Helper method to update UI when step is finalized"""
       if step_idx >= len(self.solve_state):
