@@ -2773,14 +2773,23 @@ class ScoreRecalculationTracker:
         self.show_recalculation_message(reason)
         
         def show_updated_score():
+            window.console.log("🔄 Score tracker: show_updated_score() called")
             total_score, max_score, problem_scores = self.app.calculate_total_score()
             percentage = (total_score / max_score * 100.0) if max_score > 0 else 0.0
 
+            window.console.log(f"🔄 Score tracker: calling update_score_display_in_review({percentage:.1f}%)")
             self.app.update_score_display_in_review(percentage)
-            
+
+            # Clear the recalculation message
+            msg_el = document.querySelector("#reviewScoreMessage")
+            if msg_el:
+                msg_el.innerHTML = ""
+                window.console.log("🔄 Score tracker: cleared recalculation message")
+
+            window.console.log("🔄 Score tracker: resetting tracker state")
             self.reset()
-            
-            window.console.log(f"✅ Score updated: {percentage:.1f}%")
+
+            window.console.log(f"✅ Score tracker: Score update complete: {percentage:.1f}%")
         
         window.setTimeout(create_proxy(show_updated_score), 2000)
     
@@ -3177,10 +3186,13 @@ class ProblemSolverApp:
 
     def update_score_display_in_review(self, percentage):
       """Update the score display in the review section"""
+      window.console.log(f"🔄 Attempting to update score display with {percentage:.1f}%")
       score_display = document.querySelector("#overallScoreDisplay")
       if score_display:
           # ✅ FIXED: Get fresh scores
           total_score, max_score, _ = self.calculate_total_score()
+
+          window.console.log(f"📊 Calculated scores: {total_score:.1f} / {max_score:.1f} = {percentage:.1f}%")
 
           score_display.innerHTML = f"""
               <div style="font-size: 14px; opacity: 0.9; margin-bottom: 4px;">Overall Score</div>
@@ -3190,7 +3202,9 @@ class ProblemSolverApp:
               </div>
           """
 
-          window.console.log(f"✅ Score display updated: {percentage:.1f}%")
+          window.console.log(f"✅ Score display updated successfully: {percentage:.1f}%")
+      else:
+          window.console.error("❌ Score display element #overallScoreDisplay not found!")
 
 
     def is_problem_complete(self, prob_idx):
@@ -3475,13 +3489,21 @@ class ProblemSolverApp:
 
             def return_to_review():
                 try:
+                    # Return to review section FIRST (show it before updating)
+                    self.cancel_edit_from_review(problem_idx)
+                    window.console.log("✅ Returned to review section")
+
                     # Show appropriate message based on whether answer changed
                     if answer_changed:
                         self.show_notification("✅ Answer Updated!", "success")
                     else:
                         self.show_notification("ℹ️ No changes made (answer is the same)", "info")
 
-                    # Update score display if conditions are met
+                    # Refresh the step review with updated answer
+                    self._refresh_step_review(problem_idx, step_idx)
+                    window.console.log(f"✅ Step review refreshed for problem {problem_idx}, step {step_idx}")
+
+                    # Update score display if conditions are met (after showing review)
                     if should_show_update:
                         self.update_score_display_in_review(score_to_display)
                         self.show_notification("✨ Score Updated!", "success")
@@ -3490,14 +3512,6 @@ class ProblemSolverApp:
                         # Show deferred message
                         self.show_score_deferred_message(edited_count)
                         window.console.log(f"⏳ Score display deferred (need {2 - edited_count} more edit(s))")
-
-                    # Refresh the step review with updated answer
-                    self._refresh_step_review(problem_idx, step_idx)
-                    window.console.log(f"✅ Step review refreshed for problem {problem_idx}, step {step_idx}")
-
-                    # Return to review section
-                    self.cancel_edit_from_review(problem_idx)
-                    window.console.log("✅ Returned to review section")
 
                 except Exception as e:
                     window.console.error(f"❌ Error returning to review: {e}")
@@ -3758,7 +3772,7 @@ class ProblemSolverApp:
       window.console.log(f"✅ Step type from original data: {step_type}")
 
       # ✅ Step 1: Hide review section
-      review_section = document.querySelector("#reviewSection")
+      review_section = document.querySelector("#reviewSection_all")
       if review_section:
           review_section.style.display = "none"
           window.console.log("✅ Hidden review section")
@@ -3942,11 +3956,11 @@ class ProblemSolverApp:
         window.console.log(f"🗑️ Cleared solve_state for problem {problem_idx}")
         
         # ✅ Show the review section again
-        review_section = document.querySelector(f"#reviewSection_{problem_idx}")
+        review_section = document.querySelector("#reviewSection_all")
         if review_section:
             review_section.style.display = "block"
             window.console.log("✅ Review section shown")
-            
+
             # Scroll to review section
             review_section.scrollIntoView({'behavior': 'smooth', 'block': 'start'})
         
