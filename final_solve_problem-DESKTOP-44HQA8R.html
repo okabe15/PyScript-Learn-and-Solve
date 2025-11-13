@@ -3249,8 +3249,11 @@ class ProblemSolverApp:
                 window.alert("❌ Error: Step state not found")
                 return
 
-            # Store old answer for logging
+            # Store old answer for comparison
             old_answer = self.problem_states[problem_idx][step_idx].get("user_answers", [])
+
+            # Check if answer actually changed
+            answer_changed = old_answer != new_answer
 
             # Update with new answer
             self.problem_states[problem_idx][step_idx]["user_answers"] = new_answer
@@ -3258,6 +3261,7 @@ class ProblemSolverApp:
             window.console.log(f"✅ Updated problem_states[{problem_idx}][{step_idx}]")
             window.console.log(f"   Old answer: {old_answer}")
             window.console.log(f"   New answer: {new_answer}")
+            window.console.log(f"   Answer changed: {answer_changed}")
 
             # ============================================
             # PART 5: TRACK EDIT - For score recalculation
@@ -3337,6 +3341,12 @@ class ProblemSolverApp:
 
             def return_to_review():
                 try:
+                    # Show appropriate message based on whether answer changed
+                    if answer_changed:
+                        self.show_notification("✅ Answer Updated!", "success")
+                    else:
+                        self.show_notification("ℹ️ No changes made (answer is the same)", "info")
+
                     # Refresh the step review with updated answer
                     self._refresh_step_review(problem_idx, step_idx)
                     window.console.log(f"✅ Step review refreshed for problem {problem_idx}, step {step_idx}")
@@ -3378,20 +3388,49 @@ class ProblemSolverApp:
     # HELPER METHODS (Add these to your class if not present)
     # ============================================
 
-    def show_score_update_notification(self, message):
-        """Show a notification that the score was updated"""
+    def show_notification(self, message, notification_type="success"):
+        """
+        Show a notification message to the user
+
+        Args:
+            message: The message to display
+            notification_type: Type of notification - "success", "info", "warning", or "error"
+        """
+        # Define colors for different notification types
+        colors = {
+            "success": {
+                "bg": "linear-gradient(135deg, #10b981, #059669)",
+                "shadow": "rgba(16, 185, 129, 0.3)"
+            },
+            "info": {
+                "bg": "linear-gradient(135deg, #3b82f6, #2563eb)",
+                "shadow": "rgba(59, 130, 246, 0.3)"
+            },
+            "warning": {
+                "bg": "linear-gradient(135deg, #f59e0b, #d97706)",
+                "shadow": "rgba(245, 158, 11, 0.3)"
+            },
+            "error": {
+                "bg": "linear-gradient(135deg, #ef4444, #dc2626)",
+                "shadow": "rgba(239, 68, 68, 0.3)"
+            }
+        }
+
+        color_scheme = colors.get(notification_type, colors["success"])
+
         notification = document.createElement("div")
-        notification.style.cssText = """
+        notification.style.cssText = f"""
             position: fixed;
             top: 20px;
             right: 20px;
-            background: linear-gradient(135deg, #10b981, #059669);
+            background: {color_scheme["bg"]};
             color: white;
             padding: 16px 24px;
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 12px {color_scheme["shadow"]};
             font-weight: 600;
             z-index: 10000;
+            animation: slideIn 0.3s ease-out;
         """
         notification.innerHTML = f"<div>{message}</div>"
         document.body.appendChild(notification)
@@ -3399,6 +3438,10 @@ class ProblemSolverApp:
         def remove_notification():
             notification.remove()
         window.setTimeout(create_proxy(remove_notification), 3000)
+
+    def show_score_update_notification(self, message):
+        """Show a notification that the score was updated (deprecated - use show_notification)"""
+        self.show_notification(message, "success")
 
     def show_score_deferred_message(self, edited_count):
         """Show a message that score display is deferred"""
@@ -3710,14 +3753,18 @@ class ProblemSolverApp:
           window.console.error(traceback.format_exc())
           window.alert(f"Error loading step: {str(e)}")
 
-    def cancel_edit_from_review(self, problem_idx):
+    def cancel_edit_from_review(self, problem_idx, show_cancel_message=False):
         """Cancel editing and return to review section"""
         window.console.log(f"❌ Canceling edit, returning to review")
-        
+
+        # Show cancellation message if requested
+        if show_cancel_message:
+            self.show_notification("❌ Edit Cancelled", "warning")
+
         if problem_idx not in self.solve_states:
             window.console.error("❌ Problem state not found")
             return
-        
+
         solve_state = self.solve_states[problem_idx]
         
         # ✅ Hide all step containers and remove edit wrappers
@@ -4080,7 +4127,7 @@ class ProblemSolverApp:
         
         def make_cancel_handler(prob_idx):
             def handler(e):
-                self.cancel_edit_from_review(prob_idx)
+                self.cancel_edit_from_review(prob_idx, show_cancel_message=True)
             return handler
         
         cancel_btn.addEventListener("click", create_proxy(make_cancel_handler(problem_idx)))
