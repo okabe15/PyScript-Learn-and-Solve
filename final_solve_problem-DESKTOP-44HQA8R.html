@@ -3098,7 +3098,9 @@ class ProblemSolverApp:
                     problem = self.problem_set[problem_idx]
                     steps = problem.get("steps", [])
                     if step_idx < len(steps):
-                        step_type = steps[step_idx].get("type", "unknown")
+                        step_type = steps[step_idx].get("step_type", "math-expression")
+                        if step_type == "step-by-step":
+                            step_type = "math-expression"
                         window.console.log(f"✅ Retrieved step_type from original data: {step_type}")
 
             window.console.log(f"📝 Step type: {step_type}")
@@ -3538,7 +3540,10 @@ class ProblemSolverApp:
       original_step_data = steps[step_idx]
 
       # ✅ Get the step type from original data
-      step_type = original_step_data.get("type", "unknown")
+      step_type = original_step_data.get("step_type", "math-expression")
+      # Handle legacy "step-by-step" type
+      if step_type == "step-by-step":
+          step_type = "math-expression"
 
       window.console.log(f"✅ Step type from original data: {step_type}")
 
@@ -3767,7 +3772,10 @@ class ProblemSolverApp:
             # ✅ Get step type from ORIGINAL problem data, not saved data
             if step_idx < len(original_steps):
                 original_step_data = original_steps[step_idx]
-                step_type = original_step_data.get("type", "unknown")
+                step_type = original_step_data.get("step_type", "math-expression")
+                # Handle legacy "step-by-step" type
+                if step_type == "step-by-step":
+                    step_type = "math-expression"
             else:
                 window.console.error(f"❌ No original data for step {step_idx}")
                 original_step_data = {}
@@ -3878,7 +3886,9 @@ class ProblemSolverApp:
                 problem = self.problem_set[problem_idx]
                 steps = problem.get("steps", [])
                 if step_idx < len(steps):
-                    step_type = steps[step_idx].get("type", "unknown")
+                    step_type = steps[step_idx].get("step_type", "math-expression")
+                    if step_type == "step-by-step":
+                        step_type = "math-expression"
                     window.console.log(f"✅ Retrieved step_type from original data: {step_type}")
 
         window.console.log(f"📝 Step type for editing: {step_type}")
