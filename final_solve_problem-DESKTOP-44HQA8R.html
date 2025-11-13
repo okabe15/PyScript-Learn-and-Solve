@@ -4016,30 +4016,33 @@ class ProblemSolverApp:
         
         window.console.log("✅ Edit UI fully constructed and displayed")
 
-    def _recreate_mc_single_step(self, container, step_idx, saved_step):
+    def _recreate_mc_single_step(self, container, step_idx, saved_step, original_step_data):
         """Recreate a multiple-choice-single step for editing"""
         window.console.log(f"📝 Recreating MC-single step {step_idx}")
-        
-        # Get data from saved_step - check multiple possible field names
-        question = (saved_step.get("question") or 
-                    saved_step.get("description") or 
-                    saved_step.get("text") or 
-                    f"Multiple Choice Question {step_idx + 1}")
-        
-        options = saved_step.get("options", [])
+
+        # ✅ Get question from original step data (description blocks)
+        desc_blocks = original_step_data.get("description", [])
+        question_html = self.render_content_blocks(desc_blocks)
+        if not question_html.strip():
+            question_html = f"Multiple Choice Question {step_idx + 1}"
+
+        # ✅ Get options from original step data
+        options = original_step_data.get("options", [])
+
+        # ✅ Get user's previous answer from saved_step
         user_answer = saved_step.get("user_answers", [])
-        
-        window.console.log(f"Question: {question}")
+
+        window.console.log(f"Question HTML: {question_html[:100]}...")
         window.console.log(f"Options: {options}")
-        
-        # If no options saved, create generic ones
+
+        # If no options, create generic ones
         if not options or len(options) == 0:
             options = ["Option A", "Option B", "Option C", "Option D"]
-        
+
         # Create question
         q_div = document.createElement("div")
         q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
-        q_div.innerHTML = question
+        q_div.innerHTML = question_html
         container.appendChild(q_div)
         
         # Create options
@@ -4094,29 +4097,32 @@ class ProblemSolverApp:
             opt_container.addEventListener("click", create_proxy(make_click_handler(opt_container, radio)))
             container.appendChild(opt_container)
 
-    def _recreate_mc_multiple_step(self, container, step_idx, saved_step):
+    def _recreate_mc_multiple_step(self, container, step_idx, saved_step, original_step_data):
         """Recreate a multiple-choice-multiple step for editing"""
         window.console.log(f"📝 Recreating MC-multiple step {step_idx}")
-        
-        # Get data from saved_step - check multiple possible field names
-        question = (saved_step.get("question") or 
-                    saved_step.get("description") or 
-                    saved_step.get("text") or 
-                    f"Multiple Choice Question {step_idx + 1} (Select all that apply)")
-        
-        options = saved_step.get("options", [])
+
+        # ✅ Get question from original step data (description blocks)
+        desc_blocks = original_step_data.get("description", [])
+        question_html = self.render_content_blocks(desc_blocks)
+        if not question_html.strip():
+            question_html = f"Multiple Choice Question {step_idx + 1} (Select all that apply)"
+
+        # ✅ Get options from original step data
+        options = original_step_data.get("options", [])
+
+        # ✅ Get user's previous answers from saved_step
         user_answers = saved_step.get("user_answers", [])
-        
-        window.console.log(f"Question: {question}")
+
+        window.console.log(f"Question HTML: {question_html[:100]}...")
         window.console.log(f"Options: {options}")
-        
+
         if not options or len(options) == 0:
             options = ["Option A", "Option B", "Option C", "Option D"]
-        
+
         # Create question
         q_div = document.createElement("div")
         q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
-        q_div.innerHTML = question
+        q_div.innerHTML = question_html
         container.appendChild(q_div)
         
         # Create hint
@@ -4177,25 +4183,26 @@ class ProblemSolverApp:
             opt_container.addEventListener("click", create_proxy(make_click_handler(opt_container, checkbox)))
             container.appendChild(opt_container)
 
-    def _recreate_true_false_step(self, container, step_idx, saved_step):
+    def _recreate_true_false_step(self, container, step_idx, saved_step, original_step_data):
         """Recreate a true-false step for editing"""
         window.console.log(f"📝 Recreating True/False step {step_idx}")
-        
-        # Get data from saved_step - check multiple possible field names
-        question = (saved_step.get("question") or 
-                    saved_step.get("description") or 
-                    saved_step.get("text") or 
-                    f"True or False Question {step_idx + 1}")
-        
+
+        # ✅ Get question from original step data (description blocks)
+        desc_blocks = original_step_data.get("description", [])
+        question_html = self.render_content_blocks(desc_blocks)
+        if not question_html.strip():
+            question_html = f"True or False Question {step_idx + 1}"
+
+        # ✅ Get user's previous answer from saved_step
         user_answer = saved_step.get("user_answers", [])
-        
-        window.console.log(f"Question: {question}")
+
+        window.console.log(f"Question HTML: {question_html[:100]}...")
         window.console.log(f"User answer: {user_answer}")
-        
+
         # Create question
         q_div = document.createElement("div")
         q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
-        q_div.innerHTML = question
+        q_div.innerHTML = question_html
         container.appendChild(q_div)
         
         # Create button container
@@ -4254,20 +4261,26 @@ class ProblemSolverApp:
         btn_container.appendChild(false_btn)
         container.appendChild(btn_container)
 
-    def _recreate_fill_blank_step(self, container, step_idx, saved_step):
-        """Recreate a fill-blank step for editing"""
-        window.console.log(f"📝 Recreating Fill-blank step {step_idx}")
-        
-        # Get data from saved_step - check multiple possible field names
-        question = (saved_step.get("question") or 
-                    saved_step.get("text") or 
-                    saved_step.get("description") or 
-                    f"Fill in the blank: ___")
-        
-        user_answer = saved_step.get("user_answers", [])
-        
-        window.console.log(f"Question: {question}")
-        window.console.log(f"User answer: {user_answer}")
+    def _recreate_fill_blank_step(self, container, step_idx, saved_step, original_step_data):
+      """Recreate a fill-in-the-blank step for editing"""
+      window.console.log(f"📝 Recreating Fill-blank step {step_idx}")
+
+      # ✅ Get question from original step data
+      question = original_step_data.get("text", "")
+
+      # If no text field, try description blocks
+      if not question:
+          desc_blocks = original_step_data.get("description", [])
+          question = self.render_content_blocks(desc_blocks)
+
+      if not question.strip():
+          question = f"Fill in the blank: Step {step_idx + 1}"
+
+      # Get user's previous answer from saved_step
+      user_answer = saved_step.get("user_answers", [])
+
+      window.console.log(f"Question: {question[:100]}...")
+      window.console.log(f"User answer: {user_answer}")
         
         # Create question with blank
         q_div = document.createElement("div")
@@ -4322,7 +4335,48 @@ class ProblemSolverApp:
             return
         
         container.appendChild(q_div)
-    
+
+    def _recreate_freestyle_step(self, container, step_idx, saved_step, original_step_data):
+      """Recreate a freestyle/math-expression step for editing"""
+      window.console.log(f"📝 Recreating Freestyle/Math step {step_idx}")
+
+      # ✅ Get question from original step data (description blocks)
+      desc_blocks = original_step_data.get("description", [])
+      question_html = self.render_content_blocks(desc_blocks)
+      if not question_html.strip():
+          question_html = f"Math Expression Step {step_idx + 1}"
+
+      # ✅ Get user's previous answer from saved_step
+      user_answer = saved_step.get("user_answers", [])
+
+      window.console.log(f"Question HTML: {question_html[:100]}...")
+      window.console.log(f"User answer: {user_answer}")
+
+      # Create question
+      q_div = document.createElement("div")
+      q_div.style.cssText = "margin-bottom:16px;font-size:15px;color:#334155;line-height:1.6;"
+      q_div.innerHTML = question_html
+      container.appendChild(q_div)
+
+      # Create math input field placeholder
+      input_container = document.createElement("div")
+      input_container.className = "math-input-container"
+      input_container.style.cssText = "border:2px solid #cbd5e1;border-radius:8px;padding:12px;background:white;margin-top:12px;"
+
+      math_field = document.createElement("div")
+      math_field.className = "math-input"
+      math_field.style.cssText = "min-height:40px;font-size:16px;"
+
+      input_container.appendChild(math_field)
+      container.appendChild(input_container)
+
+      # Show previous answer if any
+      if user_answer and len(user_answer) > 0:
+          prev_answer = document.createElement("div")
+          prev_answer.style.cssText = "margin-top:12px;padding:10px;background:#f1f5f9;border-radius:6px;font-size:14px;color:#475569;"
+          prev_answer.innerHTML = f"<strong>Previous answer:</strong> {user_answer[0]}"
+          container.appendChild(prev_answer)
+
     def __init__(self):
         self.problem_set = []
         self.problem_states = {}
