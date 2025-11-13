@@ -7491,6 +7491,15 @@ class ProblemSolverApp:
       correct_answers = step_data.get("correct_answers", [])
       must_correct = step_data.get("requireCorrect", False)
 
+      window.console.log(f"🔍 Fill-blank step_data keys: {list(step_data.keys())}")
+      window.console.log(f"🔍 step_data has blank_config: {'blank_config' in step_data}")
+      window.console.log(f"🔍 step_data has correct_answers: {'correct_answers' in step_data}")
+      if 'blank_config' in step_data:
+          window.console.log(f"🔍 blank_config value: {step_data['blank_config']}")
+      if 'correct_answers' in step_data:
+          window.console.log(f"🔍 correct_answers value: {step_data['correct_answers']}")
+          window.console.log(f"🔍 correct_answers length: {len(step_data['correct_answers'])}")
+
       # Get user answer
       container = step["container"]
       input_field = container.querySelector(".fill-blank-input")
