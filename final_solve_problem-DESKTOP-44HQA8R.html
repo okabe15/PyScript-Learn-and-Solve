@@ -2840,7 +2840,7 @@ class ProblemSolverApp:
         if window.MathJax and window.MathJax.typesetPromise:
             try:
                 window.MathJax.typesetPromise([review_section]).then(
-                    create_proxy(lambda: window.console.log("✅ MathJax rendered for review section"))
+                    create_proxy(lambda result: window.console.log("✅ MathJax rendered for review section"))
                 ).catch(
                     create_proxy(lambda err: window.console.error(f"❌ MathJax error: {err}"))
                 )
@@ -3027,7 +3027,7 @@ class ProblemSolverApp:
         if window.MathJax and window.MathJax.typesetPromise:
             try:
                 window.MathJax.typesetPromise([new_step_review]).then(
-                    create_proxy(lambda: window.console.log("✅ MathJax rendered for updated step"))
+                    create_proxy(lambda result: window.console.log("✅ MathJax rendered for updated step"))
                 ).catch(
                     create_proxy(lambda err: window.console.error(f"❌ MathJax error: {err}"))
                 )
@@ -5791,7 +5791,7 @@ class ProblemSolverApp:
               try:
                   if hasattr(window, 'MathJax') and hasattr(window.MathJax, 'typesetPromise'):
                       window.MathJax.typesetPromise([container]).then(
-                          create_proxy(lambda: window.console.log("✅ MathJax re-rendered"))
+                          create_proxy(lambda result: window.console.log("✅ MathJax re-rendered"))
                       )
               except Exception as e:
                   window.console.error(f"MathJax error: {e}")
@@ -7409,7 +7409,7 @@ class ProblemSolverApp:
                           try:
                               if window.MathJax and window.MathJax.typesetPromise:
                                   window.MathJax.typesetPromise([next_container]).then(
-                                      create_proxy(lambda: window.console.log("✅ Step MathJax rendered"))
+                                      create_proxy(lambda result: window.console.log("✅ Step MathJax rendered"))
                                   ).catch(create_proxy(lambda e: window.console.error(f"MathJax error: {e}")))
                           except Exception as e:
                               window.console.error(f"Error rendering MathJax: {e}")
