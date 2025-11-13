@@ -2670,8 +2670,9 @@ class ScoreRecalculationTracker:
         self.show_recalculation_message(reason)
         
         def show_updated_score():
-            total_score, max_score, percentage = self.app.calculate_total_score()
-            
+            total_score, max_score, problem_scores = self.app.calculate_total_score()
+            percentage = (total_score / max_score * 100.0) if max_score > 0 else 0.0
+
             self.app.update_score_display_in_review(percentage)
             
             self.reset()
