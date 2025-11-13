@@ -3584,27 +3584,19 @@ class Step:
     # ========================================
 
     def _render_fill_blank_ui(self):
-        """Render fill-blank UI"""
+        """Render fill-blank UI - text answers only"""
         self.type_content_el.innerHTML = """
           <!-- ✅ NEW: Require Correct Answer Checkbox -->
           <div style="margin-top:8px; margin-bottom:12px;">
             <label style="display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer;">
-              <input type="checkbox" class="requireCorrectCheckbox" 
+              <input type="checkbox" class="requireCorrectCheckbox"
                      style="width:16px; height:16px; cursor:pointer;">
               <span style="font-weight:600;">Require correct answer before proceeding to next step</span>
             </label>
           </div>
 
           <div style="margin-top:12px;">
-            <label>Answer Type</label>
-            <select class="answerTypeSelect" style="width:100%; padding:6px; border:2px solid #e6eef8; border-radius:6px; margin-top:4px;">
-              <option value="math">Math Expression</option>
-              <option value="text">Text Answer</option>
-            </select>
-          </div>
-
-          <div style="margin-top:12px;">
-            <label>Correct Answers</label>
+            <label>Correct Answers (Text)</label>
             <div class="answersContainer" style="margin-top:6px;"></div>
             <button class="btn ghost addAnswer" style="margin-top:6px; font-size:12px;">➕ Add Alternative</button>
           </div>
@@ -3622,97 +3614,44 @@ class Step:
                     window.console.log(f"✓ Require correct changed to: {e.target.checked}")
             require_checkbox.addEventListener("change", create_proxy(on_require_change))
 
-        answer_type_select = self.type_content_el.querySelector(".answerTypeSelect")
-        if answer_type_select:
-            answer_type_select.addEventListener("change", create_proxy(self._on_fill_blank_type_change))
-
         add_btn = self.type_content_el.querySelector(".addAnswer")
         if add_btn:
             add_btn.addEventListener("click", create_proxy(lambda e: self._add_fill_blank_answer()))
 
         self._add_fill_blank_answer()
 
-    def _on_fill_blank_type_change(self, e):
-        """Handle answer type change"""
-        container = self.type_content_el.querySelector(".answersContainer")
-        if container:
-            container.innerHTML = ""
-        self.blanks = []
-        self._add_fill_blank_answer()
-
     def _add_fill_blank_answer(self):
-        """Add answer field"""
-        answer_type_select = self.type_content_el.querySelector(".answerTypeSelect")
-        answer_type = answer_type_select.value if answer_type_select else "math"
-
+        """Add text answer field"""
         answer_div = document.createElement("div")
         answer_div.style.cssText = "margin-bottom:6px; padding:8px; border:2px solid #e6eef8; border-radius:6px; background:white;"
 
-        if answer_type == "math":
-            answer_div.innerHTML = """
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <label style="font-size:12px; font-weight:600;">Math Answer</label>
-                <button class="btn ghost removeAnswer" style="padding:2px 6px; font-size:10px;">Remove</button>
-              </div>
-              <div class="math-input fbAnswerMath"></div>
-            """
+        answer_div.innerHTML = """
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <label style="font-size:12px; font-weight:600;">Text Answer</label>
+            <button class="btn ghost removeAnswer" style="padding:2px 6px; font-size:10px;">Remove</button>
+          </div>
+          <input type="text" class="fbAnswerText" placeholder="Enter answer..."
+                 style="width:100%; padding:6px; border:2px solid #e6eef8; border-radius:4px;">
+        """
 
-            container = self.type_content_el.querySelector(".answersContainer")
-            if container:
-                container.appendChild(answer_div)
+        container = self.type_content_el.querySelector(".answersContainer")
+        if container:
+            container.appendChild(answer_div)
 
-            math_el = answer_div.querySelector(".fbAnswerMath")
-            ensure_mq()
-            mf = create_math_field(math_el)
+        text_input = answer_div.querySelector(".fbAnswerText")
 
-            # ✅ NEW: Add event handler to MathQuill field for autosave
-            if mf:
-                # MathQuill doesn't have standard events, we'll use the edit handler
-                try:
-                    mf.config({
-                        'handlers': {
-                            'edit': create_proxy(lambda: (
-                                window.problem_creator.data_manager.save_to_storage() 
-                                if hasattr(window, 'problem_creator') else None
-                            ))
-                        }
-                    })
-                except:
-                    pass  # Ignore if config fails
+        # ✅ Add event listener to text input for autosave
+        if text_input:
+            def on_text_change(e):
+                if hasattr(window, 'problem_creator'):
+                    window.problem_creator.data_manager.save_to_storage()
+            text_input.addEventListener("input", create_proxy(on_text_change))
 
-            self.blanks.append({
-                'type': 'math',
-                'dom': answer_div,
-                'math_input': mf
-            })
-        else:
-            answer_div.innerHTML = """
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <label style="font-size:12px; font-weight:600;">Text Answer</label>
-                <button class="btn ghost removeAnswer" style="padding:2px 6px; font-size:10px;">Remove</button>
-              </div>
-              <input type="text" class="fbAnswerText" placeholder="Enter answer..." 
-                     style="width:100%; padding:6px; border:2px solid #e6eef8; border-radius:4px;">
-            """
-
-            container = self.type_content_el.querySelector(".answersContainer")
-            if container:
-                container.appendChild(answer_div)
-
-            text_input = answer_div.querySelector(".fbAnswerText")
-
-            # ✅ NEW: Add event listener to text input for autosave
-            if text_input:
-                def on_text_change(e):
-                    if hasattr(window, 'problem_creator'):
-                        window.problem_creator.data_manager.save_to_storage()
-                text_input.addEventListener("input", create_proxy(on_text_change))
-
-            self.blanks.append({
-                'type': 'text',
-                'dom': answer_div,
-                'text_input': text_input
-            })
+        self.blanks.append({
+            'type': 'text',
+            'dom': answer_div,
+            'text_input': text_input
+        })
 
         remove_btn = answer_div.querySelector(".removeAnswer")
         if remove_btn:
@@ -3720,7 +3659,7 @@ class Step:
             def make_remove_handler(div):
                 def handler(e):
                     self._remove_fill_blank_answer(div)
-                    # ✅ NEW: Trigger autosave after removing
+                    # ✅ Trigger autosave after removing
                     if hasattr(window, 'problem_creator'):
                         window.problem_creator.data_manager.save_to_storage()
                 return handler
@@ -4436,31 +4375,24 @@ class Step:
             base_data["requireCorrect"] = require_correct  # ✅ NEW
 
         elif self.step_type == "fill-blank":
-            answer_type_select = self.type_content_el.querySelector(".answerTypeSelect")
-            answer_type = answer_type_select.value if answer_type_select else "math"
-
+            # Fill-in-the-blank is now text-only
             correct_answers = []
             for blank in self.blanks:
-                if blank['type'] == 'text':
-                    value = blank['text_input'].value.strip()
-                    if value:
-                        correct_answers.append({"value": value, "display": value})
-                else:
-                    latex = blank['math_input'].latex().strip() if blank['math_input'] else ""
-                    if latex:
-                        correct_answers.append({"value": latex, "display": latex})
+                value = blank['text_input'].value.strip()
+                if value:
+                    correct_answers.append({"value": value, "display": value})
 
-            # ✅ NEW: Get requireCorrect checkbox value
+            # ✅ Get requireCorrect checkbox value
             require_checkbox = self.type_content_el.querySelector(".requireCorrectCheckbox")
             require_correct = require_checkbox.checked if require_checkbox else False
 
             base_data.update({
                 "blank_config": {
-                    "content_type": answer_type,
+                    "content_type": "text",
                     "position": "end"
                 },
                 "correct_answers": correct_answers,
-                "requireCorrect": require_correct  # ✅ NEW
+                "requireCorrect": require_correct
             })
 
         return base_data
@@ -4649,20 +4581,9 @@ class Step:
 
             # Wait for UI to render
             def load_fill_blank_data():
-                blank_config = data.get("blank_config", {})
-                answer_type = blank_config.get("content_type", "math")
-                window.console.log(f"📋 Answer type: {answer_type}")
-
-                # Set answer type
-                answer_type_select = self.type_content_el.querySelector(".answerTypeSelect")
-                if answer_type_select:
-                    answer_type_select.value = answer_type
-                    self._on_fill_blank_type_change(None)
-                    window.console.log(f"✓ Answer type set")
-
-                # Load answers
+                # Load answers (text-only)
                 correct_answers = data.get("correct_answers", [])
-                window.console.log(f"📋 Found {len(correct_answers)} correct answers")
+                window.console.log(f"📋 Found {len(correct_answers)} correct answers (text)")
 
                 # Clear default answer
                 container = self.type_content_el.querySelector(".answersContainer")
@@ -4670,21 +4591,15 @@ class Step:
                     container.innerHTML = ""
                 self.blanks = []
 
-                # Add answer fields
+                # Add answer fields (text-only)
                 for ans_data in correct_answers:
                     self._add_fill_blank_answer()
 
                     if len(self.blanks) > 0:
                         blank = self.blanks[-1]
                         value = ans_data.get("value", "")
-
-                        if blank['type'] == 'text':
-                            blank['text_input'].value = value
-                            window.console.log(f"✓ Loaded text answer: {value}")
-                        else:
-                            if blank['math_input']:
-                                blank['math_input'].latex(value)
-                                window.console.log(f"✓ Loaded math answer: {value}")
+                        blank['text_input'].value = value
+                        window.console.log(f"✓ Loaded text answer: {value}")
 
             window.setTimeout(create_proxy(load_fill_blank_data), 300)
 
