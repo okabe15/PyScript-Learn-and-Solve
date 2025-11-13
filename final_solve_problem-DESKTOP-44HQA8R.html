@@ -3517,39 +3517,142 @@ class ProblemSolverApp:
         window.setTimeout(create_proxy(check_and_display), 10000)
     
     def edit_answer_from_review(self, problem_idx, step_idx):
-        """Initiate editing of a specific step from review section"""
-        window.console.log(f"✏️ Edit requested: problem {problem_idx}, step {step_idx}")
-        
-        # ✅ CRITICAL FIX: Ensure solve_state exists for completed problems
-        if problem_idx not in self.solve_states:
-            window.console.log(f"⚠️ solve_state not found, recreating for problem {problem_idx}")
-            success = self.ensure_solve_state_for_edit(problem_idx)
-            if not success:
-                window.alert("❌ Error: Could not prepare problem for editing")
-                return
-        
-        # ✅ Validate that step exists
-        if step_idx >= len(self.solve_states[problem_idx]):
-            window.console.error(f"❌ Step {step_idx} out of range")
-            window.alert("❌ Error: Invalid step")
-            return
-        
-        window.console.log(f"🔄 Showing step {step_idx} in edit mode")
-        
-        # Hide the review section
-        review_section = document.querySelector(f"#reviewSection_{problem_idx}")
-        if review_section:
-            review_section.style.display = "none"
-            window.console.log("✅ Hidden review section")
-        
-        # Hide the completion banner
-        completion_banner = document.querySelector(f"#completionBanner_{problem_idx}")
-        if completion_banner:
-            completion_banner.style.display = "none"
-            window.console.log("✅ Hidden completion banner")
-        
-        # Now show the edit UI directly
-        self._show_step_edit_ui(problem_idx, step_idx)
+      """Initiate editing of a specific step from review section"""
+      window.console.log("=" * 60)
+      window.console.log(f"🔧 EDIT ANSWER FROM REVIEW")
+      window.console.log(f"   Problem: {problem_idx}, Step: {step_idx}")
+      window.console.log("=" * 60)
+
+      # ✅ FIX: Get original step data from problem set FIRST
+      if problem_idx >= len(self.problem_set):
+          window.console.error(f"❌ Invalid problem index: {problem_idx}")
+          window.alert("Error: Invalid problem index")
+          return
+
+      problem = self.problem_set[problem_idx]
+      steps = problem.get("steps", [])
+
+      if step_idx >= len(steps):
+          window.console.error(f"❌ Invalid step index: {step_idx}")
+          window.alert("Error: Invalid step index")
+          return
+
+      # ✅ Get the original step data
+      original_step_data = steps[step_idx]
+
+      # ✅ Get the step type from original data
+      step_type = original_step_data.get("type", "unknown")
+
+      window.console.log(f"✅ Step type from original data: {step_type}")
+
+      # ✅ Step 1: Hide review section
+      review_section = document.querySelector("#reviewSection")
+      if review_section:
+          review_section.style.display = "none"
+          window.console.log("✅ Hidden review section")
+      else:
+          window.console.warn("⚠️ Review section not found")
+
+      # ✅ Step 2: Get and open problem accordion
+      accordion = document.querySelector(f".accordion-problem[data-index='{problem_idx}']")
+      if accordion:
+          window.console.log(f"✅ Found accordion for problem {problem_idx}")
+          if not accordion.classList.contains("open"):
+              accordion.classList.add("open")
+              window.console.log("✅ Opened accordion")
+          else:
+              window.console.log("ℹ️ Accordion already open")
+      else:
+          window.console.error(f"❌ Accordion not found for problem {problem_idx}")
+
+      # ✅ Step 3: Get problem body container
+      problem_body = document.querySelector(f"#problemBody{problem_idx}")
+      if not problem_body:
+          window.console.error(f"❌ Problem body #{problem_idx} not found in DOM")
+          window.alert("Error: Problem container not found")
+          return
+
+      window.console.log(f"✅ Found problem body for problem {problem_idx}")
+      problem_body.style.display = "block"
+
+      # ✅ Step 4: Set current problem
+      self.current_problem_index = problem_idx
+
+      # ✅ Step 5: Ensure solve_state exists with original step data
+      if problem_idx not in self.solve_states:
+          window.console.log(f"⚠️ solve_state not found, rebuilding from original data...")
+
+          if not self.ensure_solve_state_for_edit(problem_idx):
+              window.alert("❌ Error: Could not load problem for editing")
+              return
+
+      # ✅ Step 6: Create container for this step using original data
+      try:
+          saved_step = self.problem_states[problem_idx][step_idx]
+
+          # Create step container
+          container = document.createElement("div")
+          container.id = f"stepContainer{step_idx}"
+          container.className = "step-container"
+          container.style.cssText = "display:block;margin-bottom:24px;padding:20px;background:#f8fafc;border-radius:12px;border:2px solid #e2e8f0;"
+
+          # Create step header
+          step_header = document.createElement("div")
+          step_header.style.cssText = "font-size:16px;font-weight:600;color:#1e293b;margin-bottom:16px;"
+          step_header.innerHTML = f"📝 Step {step_idx + 1}"
+          container.appendChild(step_header)
+
+          # ✅ Create step content based on type from ORIGINAL data
+          window.console.log(f"Creating UI for step type: {step_type}")
+
+          if step_type == "multiple-choice-single":
+              self._recreate_mc_single_step(container, step_idx, saved_step, original_step_data)
+          elif step_type == "multiple-choice-multiple":
+              self._recreate_mc_multiple_step(container, step_idx, saved_step, original_step_data)
+          elif step_type == "true-false":
+              self._recreate_true_false_step(container, step_idx, saved_step, original_step_data)
+          elif step_type == "fill-blank":
+              self._recreate_fill_blank_step(container, step_idx, saved_step, original_step_data)
+          elif step_type in ["freestyle", "math-expression"]:
+              self._recreate_freestyle_step(container, step_idx, saved_step, original_step_data)
+          else:
+              window.console.error(f"❌ Unknown step type: {step_type}")
+              error_msg = document.createElement("div")
+              error_msg.textContent = f"Unknown step type: {step_type}"
+              error_msg.style.cssText = "color:#ef4444;padding:12px;background:#fee2e2;border-radius:6px;"
+              container.appendChild(error_msg)
+
+          # Add to body
+          problem_body.innerHTML = ""  # Clear existing content
+          problem_body.appendChild(container)
+
+          # Store in solve_state
+          if problem_idx not in self.solve_states:
+              self.solve_states[problem_idx] = []
+
+          # Update or add step to solve_state
+          step_state = {
+              "container": container,
+              "step_type": step_type,
+              "step_data": original_step_data,  # ✅ Store original data
+              "finished": saved_step.get("finished", True)
+          }
+
+          if step_idx < len(self.solve_states[problem_idx]):
+              self.solve_states[problem_idx][step_idx] = step_state
+          else:
+              self.solve_states[problem_idx].append(step_state)
+
+          window.console.log(f"✅ Created container for step {step_idx}")
+
+          # Show the edit UI
+          self._show_step_edit_ui(problem_idx, step_idx)
+
+      except Exception as e:
+          window.console.error(f"❌ Error creating step UI: {e}")
+          import traceback
+          window.console.error(traceback.format_exc())
+          window.alert(f"Error loading step: {str(e)}")
 
     def cancel_edit_from_review(self, problem_idx):
         """Cancel editing and return to review section"""
