@@ -7262,19 +7262,36 @@ class ProblemSolverApp:
                 """
             return
 
-        # Check against accepted answers
-        accepted_answers = step_data.get("accepted_answers", [])
+        # ✅ DEBUGGING: Log step_data structure
+        window.console.log(f"🔍 Fill-blank step_data keys: {list(step_data.keys())}")
+        window.console.log(f"🔍 step_data has blank_config: {'blank_config' in step_data}")
+        window.console.log(f"🔍 step_data has correct_answers: {'correct_answers' in step_data}")
+        window.console.log(f"🔍 step_data has accepted_answers: {'accepted_answers' in step_data}")
+
+        # ✅ FIX: Check for both correct_answers (new format) and accepted_answers (old format)
+        correct_answers = step_data.get("correct_answers", step_data.get("accepted_answers", []))
+
+        if 'correct_answers' in step_data:
+            window.console.log(f"🔍 correct_answers value: {step_data['correct_answers']}")
+            window.console.log(f"🔍 correct_answers length: {len(step_data['correct_answers'])}")
+        if 'accepted_answers' in step_data:
+            window.console.log(f"🔍 accepted_answers value: {step_data['accepted_answers']}")
+
         is_correct = False
 
-        for accepted in accepted_answers:
-            accepted_value = accepted.get("value", "").strip().lower()
-            if user_answer.lower() == accepted_value:
+        for answer in correct_answers:
+            if isinstance(answer, dict):
+                answer_value = answer.get("value", "").strip().lower()
+            else:
+                answer_value = str(answer).strip().lower()
+
+            if user_answer.lower() == answer_value:
                 is_correct = True
                 break
 
         must_correct = step_data.get("requireCorrect", False)
 
-        window.console.log(f"Fill-blank check: '{user_answer}' against {accepted_answers} = {is_correct}")
+        window.console.log(f"Fill-blank check: '{user_answer}' against {correct_answers} = {is_correct}")
 
         # ✅ CRITICAL: Update BOTH solve_state AND problem_states
         if current_prob_idx in self.solve_states and step_idx < len(self.solve_states[current_prob_idx]):
@@ -7325,10 +7342,11 @@ class ProblemSolverApp:
                     self.save_to_storage()
                     return
                 else:
-                    accepted_displays = ", ".join([a.get("display", a.get("value", "")) for a in accepted_answers])
+                    # ✅ FIX: Use correct_answers instead of accepted_answers
+                    correct_displays = ", ".join([a.get("display", a.get("value", "")) if isinstance(a, dict) else str(a) for a in correct_answers])
                     feedback_div.innerHTML = f"""
                         <div style='background:#fef2f2;color:#dc2626;padding:12px;border-radius:8px;margin-top:12px;'>
-                            ❌ Incorrect. Accepted answers: {accepted_displays}
+                            ❌ Incorrect. Accepted answers: {correct_displays}
                         </div>
                     """
 
@@ -7869,7 +7887,8 @@ class ProblemSolverApp:
       Since there's only one blank with multiple possible correct answers,
       score is either 100 (correct) or 0 (incorrect).
       """
-      correct_answers = step_data.get("correct_answers", [])
+      # ✅ FIX: Check for both correct_answers (new format) and accepted_answers (old format)
+      correct_answers = step_data.get("correct_answers", step_data.get("accepted_answers", []))
       user_answers = step_state.get("user_answers", [])
 
       if not correct_answers or not user_answers:
