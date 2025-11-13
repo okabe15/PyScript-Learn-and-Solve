@@ -4881,6 +4881,27 @@ class ProblemSolverApp:
 
         return elapsed
 
+    def get_current_step_elapsed_time(self, problem_idx, step_idx):
+        """Get current elapsed time for a step without stopping the timer"""
+        import js
+
+        if problem_idx not in self.step_time_tracking:
+            return 0
+
+        if step_idx not in self.step_time_tracking[problem_idx]:
+            return 0
+
+        step_time = self.step_time_tracking[problem_idx][step_idx]
+
+        # If timer is currently running (first_attempt_start is set)
+        if step_time.get("first_attempt_start") is not None:
+            current_time = js.Date.now()
+            elapsed = (current_time - step_time["first_attempt_start"]) / 1000  # Convert to seconds
+            return elapsed
+
+        # Timer not running, return completed time if any
+        return step_time.get("first_attempt_time", 0) or 0
+
     def get_step_time_summary(self, problem_idx, step_idx):
         """Get a summary of time spent on a step"""
         if problem_idx not in self.step_time_tracking:
@@ -6850,9 +6871,11 @@ class ProblemSolverApp:
           if next_btn:
               next_btn.style.display = "block"
 
-          # ✅ Add to global history
+          # ✅ Add to global history with elapsed time
           user_latex = step.get("last_correct_latex", "")
-          self.add_to_global_history(step_idx, user_latex, True, 0, "finalize")
+          time_taken = self.get_current_step_elapsed_time(current_prob_idx, step_idx)
+          window.console.log(f"⏱️ Finalize elapsed time for step {step_idx}: {time_taken:.1f}s")
+          self.add_to_global_history(step_idx, user_latex, True, time_taken, "finalize")
 
           # ✅ Mark step as finished (this will update problem_states and check completion)
           self._mark_step_finished(step_idx)
@@ -6906,9 +6929,11 @@ class ProblemSolverApp:
 
           self.show_feedback(step_idx, msg, "#dc2626")
 
-          # ✅ Add failed finalize to global history
+          # ✅ Add failed finalize to global history with elapsed time
           user_latex = step.get("last_correct_latex", "")
-          self.add_to_global_history(step_idx, user_latex, False, 0, "finalize")
+          time_taken = self.get_current_step_elapsed_time(current_prob_idx, step_idx)
+          window.console.log(f"⏱️ Failed finalize elapsed time for step {step_idx}: {time_taken:.1f}s")
+          self.add_to_global_history(step_idx, user_latex, False, time_taken, "finalize")
 
           finalize_btn = container.querySelector(".finalize-step")
           if finalize_btn:
@@ -8355,7 +8380,10 @@ class ProblemSolverApp:
           return
 
       step["attempts"] = step.get("attempts", 0) + 1
-      time_taken = 0
+
+      # ✅ Get current elapsed time for this step (without stopping the timer)
+      time_taken = self.get_current_step_elapsed_time(current_prob_idx, step_idx)
+      window.console.log(f"⏱️ Current elapsed time for step {step_idx}: {time_taken:.1f}s")
 
       if is_correct:
           step["correct"] = True
