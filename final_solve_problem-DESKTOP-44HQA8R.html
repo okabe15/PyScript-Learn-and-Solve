@@ -7689,8 +7689,8 @@ class ProblemSolverApp:
       window.console.log(f"📊 TOTAL: {total_score:.2f}/{max_score:.2f} = {percentage:.2f}%")
       window.console.log("=" * 60)
 
-      # Return total_score, max_score, and percentage (not problem_scores)
-      return (total_score, max_score, percentage)
+      # ✅ FIXED: Return problem_scores dict instead of percentage
+      return (total_score, max_score, problem_scores)
 
 
     def _calculate_mc_multiple_score(self, step_data, step_state):
