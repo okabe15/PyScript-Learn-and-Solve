@@ -2823,22 +2823,24 @@ class ProblemSolverApp:
                       has_correct_answer = "correct_answer" in step_data
                       has_correct_answers = "correct_answers" in step_data
                       has_accepted_answers = "accepted_answers" in step_data
+                      has_blank_config = "blank_config" in step_data
 
-                      window.console.log(f"    Checking structure: options={has_options}, correct_answer={has_correct_answer}, correct_answers={has_correct_answers}, accepted_answers={has_accepted_answers}")
+                      window.console.log(f"    Checking structure: options={has_options}, correct_answer={has_correct_answer}, correct_answers={has_correct_answers}, accepted_answers={has_accepted_answers}, blank_config={has_blank_config}")
 
                       # Try to infer type from structure
-                      if has_correct_answers and has_options:
+                      # Check for fill-in-blank first (blank_config is new format, accepted_answers is old format)
+                      if has_blank_config or has_accepted_answers:
+                          step_type = "fill-in-the-blank"
+                          window.console.log(f"    ✅ Inferred type: fill-in-the-blank")
+                      elif has_correct_answers and has_options:
                           step_type = "multiple-choice-multiple"
                           window.console.log(f"    ✅ Inferred type: multiple-choice-multiple")
                       elif has_correct_answer and has_options:
                           step_type = "multiple-choice-single"
                           window.console.log(f"    ✅ Inferred type: multiple-choice-single")
-                      elif has_correct_answer and not has_options and not has_accepted_answers:
+                      elif has_correct_answer and not has_options and not has_accepted_answers and not has_blank_config:
                           step_type = "true-false"
                           window.console.log(f"    ✅ Inferred type: true-false")
-                      elif has_accepted_answers:
-                          step_type = "fill-in-the-blank"
-                          window.console.log(f"    ✅ Inferred type: fill-in-the-blank")
                       elif has_correct_answers and not has_options:
                           # ✅ NEW: Has correct_answers but no options - might be MC-multiple with answers stored differently
                           # Let's try to show it anyway as multiple-choice-multiple
@@ -2926,22 +2928,24 @@ class ProblemSolverApp:
                       has_correct_answer = "correct_answer" in step_data
                       has_correct_answers = "correct_answers" in step_data
                       has_accepted_answers = "accepted_answers" in step_data
+                      has_blank_config = "blank_config" in step_data
 
-                      window.console.log(f"    Checking structure: options={has_options}, correct_answer={has_correct_answer}, correct_answers={has_correct_answers}, accepted_answers={has_accepted_answers}")
+                      window.console.log(f"    Checking structure: options={has_options}, correct_answer={has_correct_answer}, correct_answers={has_correct_answers}, accepted_answers={has_accepted_answers}, blank_config={has_blank_config}")
 
                       # Try to infer type from structure
-                      if has_correct_answers and has_options:
+                      # Check for fill-in-blank first (blank_config is new format, accepted_answers is old format)
+                      if has_blank_config or has_accepted_answers:
+                          step_type = "fill-in-the-blank"
+                          window.console.log(f"    ✅ Inferred type: fill-in-the-blank")
+                      elif has_correct_answers and has_options:
                           step_type = "multiple-choice-multiple"
                           window.console.log(f"    ✅ Inferred type: multiple-choice-multiple")
                       elif has_correct_answer and has_options:
                           step_type = "multiple-choice-single"
                           window.console.log(f"    ✅ Inferred type: multiple-choice-single")
-                      elif has_correct_answer and not has_options and not has_accepted_answers:
+                      elif has_correct_answer and not has_options and not has_accepted_answers and not has_blank_config:
                           step_type = "true-false"
                           window.console.log(f"    ✅ Inferred type: true-false")
-                      elif has_accepted_answers:
-                          step_type = "fill-in-the-blank"
-                          window.console.log(f"    ✅ Inferred type: fill-in-the-blank")
                       elif has_correct_answers and not has_options:
                           # ✅ NEW: Has correct_answers but no options - might be MC-multiple with answers stored differently
                           # Let's try to show it anyway as multiple-choice-multiple
@@ -6041,6 +6045,7 @@ class ProblemSolverApp:
               has_correct_answer = "correct_answer" in step_data
               has_correct_answers = "correct_answers" in step_data
               has_accepted_answers = "accepted_answers" in step_data
+              has_blank_config = "blank_config" in step_data
               has_text = "text" in step_data
 
               # ✅ Check if text field contains blanks
@@ -6064,11 +6069,13 @@ class ProblemSolverApp:
               window.console.log(f"    has_correct_answer: {has_correct_answer}")
               window.console.log(f"    has_correct_answers: {has_correct_answers}")
               window.console.log(f"    has_accepted_answers: {has_accepted_answers}")
+              window.console.log(f"    has_blank_config: {has_blank_config}")
               window.console.log(f"    has_text: {has_text}")
               window.console.log(f"    text_has_blank: {text_has_blank}")
 
               # ✅ IMPROVED: Check for fill-in-blank FIRST
-              if text_has_blank or has_accepted_answers:
+              # Check for blank_config (new format), accepted_answers (old format), or text with blanks
+              if has_blank_config or text_has_blank or has_accepted_answers:
                   step_type = "fill-blank"
                   window.console.log(f"    ✅ Inferred type: fill-blank")
               elif has_correct_answers and has_options:
