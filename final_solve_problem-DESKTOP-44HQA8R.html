@@ -3811,7 +3811,10 @@ class ProblemSolverApp:
           # Create step header
           step_header = document.createElement("div")
           step_header.style.cssText = "font-size:16px;font-weight:600;color:#1e293b;margin-bottom:16px;"
-          step_header.innerHTML = f"📝 Step {step_idx + 1}"
+          step_header.innerHTML = f"""
+              📝 Step {step_idx + 1}
+              <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-left:12px;'>⏱️ Time: 00:00</div>
+          """
           container.appendChild(step_header)
 
           # ✅ Create step content based on type from ORIGINAL data
@@ -3882,6 +3885,11 @@ class ProblemSolverApp:
           # Show the edit UI
           self._show_step_edit_ui(problem_idx, step_idx)
 
+          # Start live timer display for editing session
+          self.start_step_timer(problem_idx, step_idx, is_first_attempt=False)
+          self.start_live_timer_display(problem_idx, step_idx)
+          window.console.log(f"⏱️ Started live timer for edit session")
+
           # Render MathJax for problem description and step content
           if hasattr(window, 'MathJax') and hasattr(window.MathJax, 'typesetPromise'):
               window.console.log("🎨 Rendering MathJax for edit mode...")
@@ -3900,6 +3908,9 @@ class ProblemSolverApp:
     def cancel_edit_from_review(self, problem_idx, show_cancel_message=False):
         """Cancel editing and return to review section"""
         window.console.log(f"❌ Canceling edit, returning to review")
+
+        # Stop live timer display
+        self.stop_live_timer_display()
 
         # Show cancellation message if requested
         if show_cancel_message:
@@ -4715,6 +4726,10 @@ class ProblemSolverApp:
         # Format: {problem_idx: {step_idx: {"first_attempt_time": seconds, "edit_sessions": [session_times]}}}
         self.step_time_tracking = {}
 
+        # ✅ Live timer display
+        self.timer_display_interval = None
+        self.current_timer_step = None  # Track which step timer is displaying for
+
     def init(self):
         # Initialize MathQuill
         if hasattr(window, 'MathQuill'):
@@ -4922,6 +4937,46 @@ class ProblemSolverApp:
             "edit_count": edit_count,
             "total_time": first_attempt + total_edit_time
         }
+
+    def start_live_timer_display(self, problem_idx, step_idx):
+        """Start live timer display that updates every second"""
+        # Stop any existing timer first
+        self.stop_live_timer_display()
+
+        self.current_timer_step = (problem_idx, step_idx)
+
+        def update_timer():
+            if self.current_timer_step == (problem_idx, step_idx):
+                self.update_timer_display(problem_idx, step_idx)
+
+        # Update immediately
+        update_timer()
+
+        # Then update every second
+        self.timer_display_interval = window.setInterval(create_proxy(update_timer), 1000)
+        window.console.log(f"⏱️ Started live timer display for problem {problem_idx}, step {step_idx}")
+
+    def stop_live_timer_display(self):
+        """Stop the live timer display"""
+        if self.timer_display_interval:
+            window.clearInterval(self.timer_display_interval)
+            self.timer_display_interval = None
+            self.current_timer_step = None
+            window.console.log("⏱️ Stopped live timer display")
+
+    def update_timer_display(self, problem_idx, step_idx):
+        """Update the timer display element with current elapsed time"""
+        elapsed = self.get_current_step_elapsed_time(problem_idx, step_idx)
+
+        # Format time as MM:SS
+        minutes = int(elapsed / 60)
+        seconds = int(elapsed % 60)
+        time_str = f"{minutes:02d}:{seconds:02d}"
+
+        # Find the timer display element
+        timer_display = document.querySelector(f"#timerDisplay{step_idx}")
+        if timer_display:
+            timer_display.innerHTML = f"⏱️ Time: {time_str}"
 
     def show_page(self, page_name):
         # Hide all pages
@@ -5357,6 +5412,7 @@ class ProblemSolverApp:
 
                   # ✅ Start timer for the reopened step
                   self.start_step_timer(index, first_unfinished, is_first_attempt=True)
+                  self.start_live_timer_display(index, first_unfinished)
                   window.console.log(f"⏱️ Started timer for reopened step {first_unfinished}")
 
           # Re-render MathJax when reopening
@@ -6232,6 +6288,7 @@ class ProblemSolverApp:
 
       # ✅ Start timer for the first shown step
       self.start_step_timer(index, first_unfinished_idx, is_first_attempt=True)
+      self.start_live_timer_display(index, first_unfinished_idx)
       window.console.log(f"⏱️ Started timer for step {first_unfinished_idx}")
 
       # Scroll to step
@@ -6326,6 +6383,7 @@ class ProblemSolverApp:
       <div style='font-weight:700;margin-bottom:8px;'>
           Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
+      <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
         <div style='font-weight:700;margin-bottom:8px;'>Your Answer:</div>
@@ -6399,6 +6457,7 @@ class ProblemSolverApp:
       <div style='font-weight:700;margin-bottom:8px;'>
           Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
+      <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
         <div style='font-weight:700;margin-bottom:8px;'>Select one answer:</div>
@@ -6466,6 +6525,7 @@ class ProblemSolverApp:
       <div style='font-weight:700;margin-bottom:8px;'>
           Step <span class='step-number-display'>{step_idx+1}</span> of {total_steps} {must_correct_badge}
       </div>
+      <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
       <div class='step-description'>{desc_html}</div>
       <div style='margin-top:12px;'>
         <div style='font-weight:700;margin-bottom:8px;'>Select all correct answers:</div>
@@ -6513,6 +6573,7 @@ class ProblemSolverApp:
       html = f"""
           <div class='step-header'>
               <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps}</div>
+              <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
           </div>
 
           <div class='step-description'>
@@ -6632,6 +6693,7 @@ class ProblemSolverApp:
                       <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>
                           Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps} {must_correct_badge}
                       </div>
+                      <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
                   </div>
 
                   <div class='step-description'>
@@ -6679,6 +6741,7 @@ class ProblemSolverApp:
                       <div style='font-weight:700;font-size:18px;margin-bottom:12px;'>
                           Step <span class='step-number-display'>{step_idx + 1}</span> of {total_steps} {must_correct_badge}
                       </div>
+                      <div id='timerDisplay{step_idx}' style='display:inline-block;background:#f0f9ff;color:#0369a1;padding:6px 12px;border-radius:6px;font-size:14px;font-weight:600;margin-bottom:12px;'>⏱️ Time: 00:00</div>
                   </div>
 
                   <div class='step-description'>
@@ -7205,6 +7268,7 @@ class ProblemSolverApp:
 
                             # Start timer for the new step
                             self.start_step_timer(current_prob_idx, next_step_idx, is_first_attempt=True)
+                            self.start_live_timer_display(current_prob_idx, next_step_idx)
                             window.console.log(f"⏱️ Started timer for step {next_step_idx}")
 
                             # Animate step number
@@ -7756,6 +7820,7 @@ class ProblemSolverApp:
 
                           # Start timer for the new step
                           self.start_step_timer(current_prob_idx, next_step_idx, is_first_attempt=True)
+                          self.start_live_timer_display(current_prob_idx, next_step_idx)
                           window.console.log(f"⏱️ Started timer for step {next_step_idx}")
 
                           # Animate step number
