@@ -6832,6 +6832,14 @@ class ProblemSolverApp:
                   self.problem_states[current_prob_idx][step_idx]["structure_correct"] = True
                   window.console.log(f"✅ Updated problem_states: structure_correct=True")
 
+          # ⏱️ Stop timer and get total elapsed time for this step
+          time_taken = 0
+          if current_prob_idx is not None:
+              time_taken = self.end_step_timer(current_prob_idx, step_idx, is_first_attempt=False)
+              if time_taken is None:
+                  time_taken = 0
+              window.console.log(f"⏱️ Step {step_idx} total time (finalize): {time_taken:.1f}s")
+
           self.show_feedback(step_idx, "✅ Finalized — your solution method matches perfectly!", "#059669")
 
           # Disable buttons
@@ -6850,9 +6858,9 @@ class ProblemSolverApp:
           if next_btn:
               next_btn.style.display = "block"
 
-          # ✅ Add to global history
+          # ✅ Add to global history with actual elapsed time
           user_latex = step.get("last_correct_latex", "")
-          self.add_to_global_history(step_idx, user_latex, True, 0, "finalize")
+          self.add_to_global_history(step_idx, user_latex, True, time_taken, "finalize")
 
           # ✅ Mark step as finished (this will update problem_states and check completion)
           self._mark_step_finished(step_idx)
@@ -6871,6 +6879,13 @@ class ProblemSolverApp:
                   self.problem_states[current_prob_idx][step_idx]["finished"] = False
                   self.problem_states[current_prob_idx][step_idx]["structure_correct"] = False
                   window.console.log(f"✅ Updated problem_states: structure_correct=False")
+
+          # ⏱️ Get elapsed time (but don't stop timer since user will try again)
+          time_taken = 0
+          if current_prob_idx is not None:
+              time_summary = self.get_step_time_summary(current_prob_idx, step_idx)
+              time_taken = time_summary.get("total_time", 0)
+              window.console.log(f"⏱️ Step {step_idx} elapsed time so far (failed finalize): {time_taken:.1f}s")
 
           # Build detailed feedback
           msg_parts = [f"❌ Attempt {step['finalize_attempts']}: Structure mismatch.<br><br>"]
@@ -6906,9 +6921,9 @@ class ProblemSolverApp:
 
           self.show_feedback(step_idx, msg, "#dc2626")
 
-          # ✅ Add failed finalize to global history
+          # ✅ Add failed finalize to global history with elapsed time
           user_latex = step.get("last_correct_latex", "")
-          self.add_to_global_history(step_idx, user_latex, False, 0, "finalize")
+          self.add_to_global_history(step_idx, user_latex, False, time_taken, "finalize")
 
           finalize_btn = container.querySelector(".finalize-step")
           if finalize_btn:
@@ -8355,7 +8370,15 @@ class ProblemSolverApp:
           return
 
       step["attempts"] = step.get("attempts", 0) + 1
-      time_taken = 0
+
+      # ⏱️ Stop timer and get elapsed time for this step
+      if current_prob_idx is not None:
+          time_taken = self.end_step_timer(current_prob_idx, step_idx, is_first_attempt=True)
+          if time_taken is None:
+              time_taken = 0
+          window.console.log(f"⏱️ Step {step_idx} elapsed time: {time_taken:.1f}s")
+      else:
+          time_taken = 0
 
       if is_correct:
           step["correct"] = True
